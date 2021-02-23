@@ -49,15 +49,45 @@ void main() {
 // compiles shaders, links program, looks up locations
 const programInfo = twgl.createProgramInfo(gl, [vs, fs]);
 
-// test tessellation
-var poly = [
-  [136, 0, 482, 0, 733, 74, 823, 282, 597, 519, 597, 526, 740, 600, 790, 746, 701, 932, 416, 992, 136, 992],
-  [251, 892, 421, 892, 551, 892, 611, 855, 670, 818, 670, 734, 670, 643, 617, 605, 563, 567, 441, 567, 251, 567],
-  [448, 469, 575, 469, 637, 425, 699, 382, 699, 290, 699, 191, 639, 144, 578, 98, 458, 98, 251, 98, 251, 469]
+// tessellator, a contour is a flattened point-list, and a polygon is a multi-contour
+var ring = [
+  [0, 0, 100, 0, 100, 100, 0, 100],
+  [20, 20, 80, 20, 80, 80, 20, 80],
 ];
+var tessRing = tessellate(ring);
+const bufferRing = twgl.createBufferInfoFromArrays(gl, {
+  a_position: {
+    numComponents: 2,
+    data: Float32Array.from(tessRing.vertices),
+  },
+  indices: Array.from(tessRing.triangles),
+});
+
+var poly = [
+[
+       0,  0, // 0----1
+      40,  0, // |    |
+      40, 10, // | 3--2
+      10, 10, // | |
+      10, 20, // | 4-5
+      30, 20, // |   |
+      30, 30, // | 7-6
+      10, 30, // | |
+      10, 50, // 9-8
+       0, 50,
+    ],
+];
+
 var tess = tessellate(poly);
-
-
+// const nVertices = tess.vertices.length / 2;
+// const nTriangles = tess.triangles.length / 3;
+const bufferTess = twgl.createBufferInfoFromArrays(gl, {
+  a_position: {
+    numComponents: 2,
+    data: Float32Array.from(tess.vertices),
+  },
+  indices: Array.from(tess.triangles),
+});
 
 // calls gl.createBuffer, gl.bindBuffer, gl.bufferData
 const bufferInfo = twgl.createBufferInfoFromArrays(gl, {
@@ -100,10 +130,11 @@ const camera = {
 };
 
 const scene = [
-  { x:  20, y:  20, rotation: 0,       scale: 1,   color: [1,   0, 0, 1], bufferInfo},
-  { x: 100, y:  50, rotation: Math.PI, scale: 0.5, color: [0, 0.5, 0, 1], bufferInfo},
-  { x: 100, y:  50, rotation: 0,       scale: 2,   color: [0,   0, 1, 1], bufferInfo},
-  { x: 200, y: 100, rotation: 0.7,     scale: 1,   color: [1,   0, 1, 1], bufferInfo},
+  { x:  20, y:  20, rotation: 0, scale: 1,   color: [1, 0, 0, 1], bufferInfo: bufferInfo},
+  // { x: 100, y:  50, rotation: Math.PI, scale: 0.5, color: [0, 0.5, 0, 1], bufferInfo},
+  // { x: 100, y:  50, rotation: 0, scale: 2,   color: [0,   0, 1, 1], bufferInfo},
+  { x: 200, y: 200, rotation: 0, scale: 1,   color: [1, 0, 1, 1], bufferInfo: bufferRing},
+  { x: 100, y: 20, rotation: 0, scale: 1,   color: [0, 0, 1, 1], bufferInfo: bufferTess},
 ];
 
 let viewProjectionMat;
@@ -126,7 +157,8 @@ function updateViewProjection() {
 }
 
 function drawThing(thing) {
-  const {x, y, rotation, scale, color, bufferInfo} = thing;
+  const {x, y, rotation, scale, color} = thing;
+  const bufferInfo = thing.bufferInfo;
   
   // calls gl.bindBuffer, gl.enableVertexAttribArray, gl.vertexAttribPointer
   twgl.setBuffersAndAttributes(gl, programInfo, bufferInfo);
