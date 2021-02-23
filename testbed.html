@@ -86,7 +86,7 @@ const bufferTess = twgl.createBufferInfoFromArrays(gl, {
     numComponents: 2,
     data: Float32Array.from(tess.vertices),
   },
-  indices: Array.from(tess.triangles),
+  indices: Uint16Array.from(tess.triangles),
 });
 
 // calls gl.createBuffer, gl.bindBuffer, gl.bufferData
