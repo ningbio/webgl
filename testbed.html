@@ -5,7 +5,7 @@
         <style type="text/css">
             body
             {
-                background-color: #333;
+                background-color: rgb(255, 255, 255);
                 display: flex;
                 align-items: center;
                 justify-content: center;
@@ -46,7 +46,8 @@ void main() {
 }
 `;
 
-const loopvs = `
+const loopvs_gl1 = `
+#version 100 es
 attribute vec2 a_position;
 attribute vec2 a_texcoord;
 attribute float a_winding;
@@ -60,7 +61,8 @@ void main() {
 }
 `;
 
-const loopfs = `
+const loopfs_gl1 = `
+#version 100 es
 precision mediump float;
 uniform vec4 u_color;
 varying vec2 v_texcoord;
@@ -76,15 +78,58 @@ void main() {
   if (val > 0.0) discard;
 
   gl_FragColor = vec4(u, v, 1, 1);
+}
+`;
 
-  
-  
+const loopvs_gl2 = `
+#version 300 es
+in vec2 a_position;
+in vec2 a_texcoord;
+in float a_winding;
+out vec2 v_texcoord;
+out float v_winding;
+uniform mat3 u_matrix;
+void main() {
+  gl_Position = vec4((u_matrix * vec3(a_position, 1)).xy, 0, 1);
+  v_texcoord = a_texcoord;
+  v_winding = a_winding;
+}
+`;
 
+const loopfs_gl2 = `
+#version 300 es
+precision mediump float;
+uniform vec4 u_color;
+in vec2 v_texcoord;
+in float v_winding;
+out vec4 outColor;
+void main() {
+  //gl_FragColor = u_color;
+  //  gl_FragColor = vec4(v_texcoord, 1, 1);
+  // gl_FragColor = vec4(vec2(v_winding, v_winding) - v_texcoord, 1, 1);
+
+  float u = v_texcoord.x;
+  float v = v_texcoord.y;
+  float val = (u * u - v) * v_winding;
+  
+  float ddx = dFdx(val);
+  float ddy = dFdy(val);
+  float scale = sqrt(ddx * ddx + ddy * ddy);
+  //float scale = fwidth(val);
+  float sd = val / scale;
+  float alpha = 0.5 - sd;
+  
+  // if (val > 0.0) discard;
+  // outColor = vec4(u, v, 1, 1);
+  // outColor = vec4(0, 0, 1, alpha);
+  float c = clamp(alpha, 0.0, 1.0);
+  //outColor = vec4(alpha, 0, 0, 1);
+  outColor = vec4(1, 0, 0, c);
 }
 `;
 
 // compiles shaders, links program, looks up locations
-const programInfo = twgl.createProgramInfo(gl, [loopvs, loopfs]);
+const programInfo = twgl.createProgramInfo(gl, [loopvs_gl2, loopfs_gl2]);
 
 // tessellator, a contour is a flattened point-list, and a polygon is a multi-contour
 var ring = [
@@ -242,7 +287,7 @@ function drawThing(thing) {
 }
 
 function draw() {
-  gl.clearColor(0.9, 0.9, 1, 1);
+  gl.clearColor(1, 1, 1, 1);
   gl.clear(gl.COLOR_BUFFER_BIT);
 
   updateViewProjection();
