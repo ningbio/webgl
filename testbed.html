@@ -46,8 +46,47 @@ void main() {
 }
 `;
 
+const loopvs = `
+attribute vec2 a_position;
+attribute vec2 a_texcoord;
+attribute float a_winding;
+varying vec2 v_position;
+varying vec2 v_texcoord;
+varying float v_winding;
+uniform mat3 u_matrix;
+void main() {
+  gl_Position = vec4((u_matrix * vec3(a_position, 1)).xy, 0, 1);
+  v_position = a_position;
+  v_texcoord = a_texcoord;
+  v_winding = a_winding;
+}
+`;
+
+const loopfs = `
+precision mediump float;
+uniform vec4 u_color;
+varying vec2 v_position;
+varying vec2 v_texcoord;
+varying float v_winding;
+void main() {
+  //gl_FragColor = u_color;
+  //  gl_FragColor = vec4(v_texcoord, 1, 1);
+  
+  float u = v_texcoord.x;
+  float v = v_texcoord.y;
+  float val = (u * u - v) * v_winding;
+  if (val > 0.0) discard;
+
+  gl_FragColor = vec4(u, v, 1, 1);
+
+  // gl_FragColor = vec4(vec2(v_winding, v_winding) - v_texcoord, 1, 1);
+  
+
+}
+`;
+
 // compiles shaders, links program, looks up locations
-const programInfo = twgl.createProgramInfo(gl, [vs, fs]);
+const programInfo = twgl.createProgramInfo(gl, [loopvs, loopfs]);
 
 // tessellator, a contour is a flattened point-list, and a polygon is a multi-contour
 var ring = [
@@ -116,6 +155,33 @@ const bufferInfo = twgl.createBufferInfoFromArrays(gl, {
   ],
 });
 
+
+const bufferCurve = twgl.createBufferInfoFromArrays(gl, {
+  a_position: {
+    numComponents: 2,
+    data: [
+      99, 202,
+      99, 98,
+      21, 42,
+    ],
+  },
+  a_texcoord: {
+    numComponents: 2,
+    data: [
+      0, 0,
+      0.5, 0,
+      1, 1,
+    ],
+  },
+  a_winding: {
+    numComponents : 1,
+    data: [1,1,1],
+  },
+  indices: [
+    0, 1, 2,
+  ],
+});
+
 const sphereVerts = twgl.primitives.createSphereVertices(1, 24, 12);
 const sphereBufferInfo = twgl.createBufferInfoFromArrays(gl, {
   a_position: sphereVerts.position,
@@ -130,11 +196,10 @@ const camera = {
 };
 
 const scene = [
-  { x:  20, y:  20, rotation: 0, scale: 1,   color: [1, 0, 0, 1], bufferInfo: bufferInfo},
-  // { x: 100, y:  50, rotation: Math.PI, scale: 0.5, color: [0, 0.5, 0, 1], bufferInfo},
-  // { x: 100, y:  50, rotation: 0, scale: 2,   color: [0,   0, 1, 1], bufferInfo},
-  { x: 200, y: 200, rotation: 0, scale: 1,   color: [1, 0, 1, 1], bufferInfo: bufferRing},
-  { x: 100, y: 20, rotation: 0, scale: 1,   color: [0, 0, 1, 1], bufferInfo: bufferTess},
+  // { x:  20, y:  20, rotation: 0, scale: 1,   color: [1, 0, 0, 1], bufferInfo: bufferInfo},
+  // { x: 200, y: 200, rotation: 0, scale: 1,   color: [1, 0, 1, 1], bufferInfo: bufferRing},
+  // { x: 100, y: 20, rotation: 0, scale: 1,   color: [0, 0, 1, 1], bufferInfo: bufferTess},
+  { x: 300, y: 20, rotation: 0, scale: 1,   color: [1, 0, 0, 1], bufferInfo: bufferCurve},
 ];
 
 let viewProjectionMat;
