@@ -119,11 +119,14 @@ void main() {
   float sd = val / scale;
   float alpha = 0.5 - sd;
   
+  // no AA version
   // if (val > 0.0) discard;
+  // outColor = vec4(1, 0, 0, 1);
+
   // outColor = vec4(u, v, 1, 1);
   // outColor = vec4(0, 0, 1, alpha);
   float c = clamp(alpha, 0.0, 1.0);
-  //outColor = vec4(alpha, 0, 0, 1);
+  // outColor = vec4(alpha, 0, 0, 1); // to debug alpha
   outColor = vec4(1, 0, 0, c);
 }
 `;
