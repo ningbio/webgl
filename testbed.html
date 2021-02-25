@@ -28,7 +28,7 @@
 /* global document, window, twgl, m3 */
 
 const canvas = document.querySelector('canvas');
-const gl = canvas.getContext('webgl');
+const gl = canvas.getContext('webgl2'); // may need to fallback to webgl 1.0
 
 const vs = `
 attribute vec2 a_position;
@@ -50,13 +50,11 @@ const loopvs = `
 attribute vec2 a_position;
 attribute vec2 a_texcoord;
 attribute float a_winding;
-varying vec2 v_position;
 varying vec2 v_texcoord;
 varying float v_winding;
 uniform mat3 u_matrix;
 void main() {
   gl_Position = vec4((u_matrix * vec3(a_position, 1)).xy, 0, 1);
-  v_position = a_position;
   v_texcoord = a_texcoord;
   v_winding = a_winding;
 }
@@ -65,13 +63,13 @@ void main() {
 const loopfs = `
 precision mediump float;
 uniform vec4 u_color;
-varying vec2 v_position;
 varying vec2 v_texcoord;
 varying float v_winding;
 void main() {
   //gl_FragColor = u_color;
   //  gl_FragColor = vec4(v_texcoord, 1, 1);
-  
+  // gl_FragColor = vec4(vec2(v_winding, v_winding) - v_texcoord, 1, 1);
+
   float u = v_texcoord.x;
   float v = v_texcoord.y;
   float val = (u * u - v) * v_winding;
@@ -79,7 +77,7 @@ void main() {
 
   gl_FragColor = vec4(u, v, 1, 1);
 
-  // gl_FragColor = vec4(vec2(v_winding, v_winding) - v_texcoord, 1, 1);
+  
   
 
 }
