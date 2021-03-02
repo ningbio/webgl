@@ -21,7 +21,8 @@
   <canvas id="canvas" width="1080" height="720"></canvas>
 
   <!-- <script src="webgl.js"></script> -->
-  <script src="resources/twgl/4.x/twgl-full.min.js"></script>
+  <!-- <script src="resources/twgl/4.x/twgl-full.min.js"></script> -->
+  <script src="resources/twgl/4.x/twgl-full.js"></script>
   <script src="resources/m3.js"></script>
   <!-- <script src="gl-matrix-min.js"></script> -->
   <script src="tessellate.js"></script>
@@ -44,7 +45,7 @@
       // console.log(segment); 
     });
 
-    let showWireframe = false;
+    let showWireframe = true;
     /*
     // load pathkit first, to handle geometry
     PathKitInit({
@@ -327,7 +328,7 @@ void main() {
     } 
 
     const testShape = shapeFromSvgString('');
-    addShape(400, 300, 1, [1, 0, 0, 1], testShape);
+    // addShape(400, 300, 1, [1, 0, 0, 1], testShape);
 
     
     function trianglesTolines(triangles) {
@@ -506,6 +507,7 @@ void main() {
       const bufferInfo = showWireframe ? thing.bufferWire : thing.bufferInfo;
 
       // calls gl.bindBuffer, gl.enableVertexAttribArray, gl.vertexAttribPointer
+      if (!bufferInfo) return;
       twgl.setBuffersAndAttributes(gl, programInfo, bufferInfo);
 
       let mat = m3.identity();
