@@ -21,8 +21,8 @@
   <canvas id="canvas" width="1080" height="720"></canvas>
 
   <!-- <script src="webgl.js"></script> -->
-  <!-- <script src="resources/twgl/4.x/twgl-full.min.js"></script> -->
-  <script src="resources/twgl/4.x/twgl-full.js"></script>
+  <script src="resources/twgl/4.x/twgl-full.min.js"></script>
+  <!-- <script src="resources/twgl/4.x/twgl-full.js"></script> -->
   <script src="resources/m3.js"></script>
   <!-- <script src="gl-matrix-min.js"></script> -->
   <script src="tessellate.js"></script>
@@ -45,7 +45,7 @@
       // console.log(segment); 
     });
 
-    let showWireframe = true;
+    let showWireframe = false;
     /*
     // load pathkit first, to handle geometry
     PathKitInit({
@@ -222,7 +222,7 @@ void main() {
           earPtIdx += 2;
 
           // update inner
-          if (winding < 0) {
+          if (winding > 0) {
             // control point is outside the cage
             curPoly.push(...p2);
           } else {
@@ -328,7 +328,7 @@ void main() {
     } 
 
     const testShape = shapeFromSvgString('');
-    // addShape(400, 300, 1, [1, 0, 0, 1], testShape);
+    addShape(400, 300, 1, [1, 0, 0, 1], testShape);
 
     
     function trianglesTolines(triangles) {
@@ -668,9 +668,17 @@ void main() {
       // camera needs to be moved the difference of before and after
       camera.x += preZoomX - postZoomX;
       camera.y += preZoomY - postZoomY;
-
       draw();
     });
+
+    // key listener
+    window.addEventListener('keydown',(e)=>{
+      if (e.key === 'w' || e.key === 'W') {
+        showWireframe = !showWireframe;
+      }
+      draw();
+    },false);
+
 
     draw();        
   </script>
