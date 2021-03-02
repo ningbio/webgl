@@ -183,10 +183,10 @@ void main() {
     function shapeFromSvgString(svgstr) {
       // convert arc to Q or C, make sure only C, Q, L, H, V 
       
-      const inputPath = SvgPath('M0,50L50,50Q100,50,100,100Q50,100,50,150z').unarc();
+      // const inputPath = SvgPath('M0,50L50,50Q100,50,100,100Q50,100,50,150z').unarc();
       // const inputPath = SvgPath('M0,50L50,50Q100,50,100,100Q50,100,50,150 M25,60L50,60L50,80z').unarc();
       // const inputPath = SvgPath('M0,50L50,50Q100,50,100,100Q50,100,50,150 M25,60Q50,60,50,80z').unarc();
-      // const inputPath = SvgPath('M0,50L50,50C75,50,100,75,100,100C75,100,50,125,50,150z').unarc();
+      const inputPath = SvgPath('M0,50L50,50C75,50,100,75,100,100C75,100,50,125,50,150z').unarc();
 
       // output data, may have multiple contour
       let polyContours = []; // array of point contours
@@ -246,7 +246,7 @@ void main() {
         } else if (verb === 'C') {
           if (segment.length == 7) {
             const quads = cubicToQuad(curPt[0], curPt[1], segment[1], segment[2], segment[3], segment[4], segment[5], segment[6], eps);
-            const nPoints = cubicToQuad.length / 2;
+            const nPoints = quads.length / 2;
             const nSeg = (nPoints-1)/2;
             const cur = [quads[0], quads[1]];
 
@@ -257,20 +257,28 @@ void main() {
 
             // loop each segment
             for (let i = 0; i < nSeg; i++) {
-              const p0 = points[2*i+0];
-              const p1 = points[2*i+1];
-              const p2 = points[2*i+2];
-
+              const p0 = points[2*i+0], p1 = points[2*i+1], p2 = points[2*i+2];              
               const winding = calcWinding(p0, p1, p2);
+              
+              // update ear data if is continued quad, already pushed
+              if (i === 0 && lastVerb !== 'Q') {
+                earPtIdx++;
+                earPoints.push(...p0);
+              }
+              // for ears, just push the cage
+              earPoints.push(...p1, ...p2);
+              quadEars.push([earPtIdx, earPtIdx + 1, earPtIdx + 2, winding]);
+              earPtIdx += 2;
 
-
-            }
-
-            
-
-
-
-
+              // update inner, for polyline, only push the inner control point of an ear
+              if (winding > 0) {
+                // control point is outside the cage
+                curPoly.push(...p2);
+              } else {
+                // control point is inside the cage
+                curPoly.push(...p1, ...p2);
+              }
+            } // end of loop
 
             curPt = [quads[quads.length-2], quads[quads.length-1]];
           }
