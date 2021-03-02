@@ -171,15 +171,16 @@ void main() {
     function shapeFromSvgString(svgstr) {
       // convert arc to Q or C, make sure only C, Q, L, H, V 
       // const inputPath = SvgPath('M50,50C75,50,100,75,100,100C75,100,50,125,50,150z').unarc();
-      const inputPath = SvgPath('M0,50L50,50Q100,50,100,100Q50,100,50,150z').unarc();
-      // const inputPath = SvgPath('M0,50L50,50Q100,50,100,100Q50,100,50,150 M25,10,50,10,50,40z').unarc();
+      // const inputPath = SvgPath('M0,50L50,50Q100,50,100,100Q50,100,50,150z').unarc();
+      // const inputPath = SvgPath('M0,50L50,50Q100,50,100,100Q50,100,50,150 M25,60L50,60L50,80z').unarc();
+      const inputPath = SvgPath('M0,50L50,50Q100,50,100,100Q50,100,50,150 M25,60Q50,60,50,80z').unarc();
 
       // output data, may have multiple contour
       let polyContours = []; // array of point contours
       let earPoints = []; // all triangles with duplicates [p0, p1, p2, p3, p4, p5...]
       let quadEars = [];
 
-      let earPtIdx = 0;
+      let earPtIdx = -1;
       let curPt = undefined;
       let curPoly = [];
       let lastVerb = undefined;
@@ -189,10 +190,10 @@ void main() {
         const verb = segment[0];
 
         if (verb === 'M') {
-          if (curPoly.length) {
+          if (curPoly.length >= 6) {
             // last countour finishes
             polyContours.push(curPoly);
-            curPoly = [];
+            curPoly = [segment[1], segment[2]];
           } else {
             curPoly.push(segment[1], segment[2]);
           }
@@ -215,6 +216,7 @@ void main() {
 
           // update ears
           if (lastVerb !== verb) {
+            earPtIdx++;
             earPoints.push(...p0);
           }
           earPoints.push(...p1, ...p2);
@@ -236,7 +238,7 @@ void main() {
             // empty for now
           }
         } else if (verb === 'z' || verb === 'Z') {
-          if (curPoly.length) {
+          if (curPoly.length >= 6) {
             polyContours.push(curPoly);
             curPoly = [];
             curPt = undefined;
