@@ -31,8 +31,9 @@
   <!-- <script src="/node_modules/svgpath/lib/svgpath.js"></script> -->
   <script type="text/javascript">
     'use strict';
-    const { mat2, mat3, mat4, vec2, vec3, vec4 } = glMatrix;
+    // const { mat2, mat3, mat4, vec2, vec3, vec4 } = glMatrix;
     const eps = 0.5;
+    const scene = [];
     // const quads = cubicToQuad(50, 50, 75, 50, 100, 75, 100, 100, eps);
     // console.log(quads);
 
@@ -250,7 +251,7 @@ void main() {
 
     addShapeFromSvgString('');
 
-    // const scene = [];
+    
     function trianglesTolines(triangles) {
       let lines = [];
       for (let i = 0; i < triangles.length / 3; i++) {
@@ -385,13 +386,12 @@ void main() {
     };
 
     // contains the different shapes, each shape has polylines and ears.
-    const scene = [
+    scene.push(
       // { x: 20, y: 20, rotation: 0, scale: 1, color: [1, 0, 0, 1], bufferInfo: bufferInfo },
       { x: 200, y: 200, rotation: 0, scale: 1, color: [1, 0, 1, 1], bufferInfo: bufferRing, bufferWire: bufferRingWire, hasCurve: false },
       { x: 100, y: 20, rotation: 0, scale: 1, color: [0, 0, 1, 1], bufferInfo: bufferTess, bufferWire: bufferTessWire, hasCurve: false },
       { x: 300, y: 20, rotation: 0, scale: 1, color: [1, 0, 0, 1], bufferInfo: bufferCurve, hasCurve: true },
-
-    ];
+    );
 
     let viewProjectionMat;
 
