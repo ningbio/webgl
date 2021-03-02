@@ -1,36 +1,69 @@
-
 <!DOCTYPE html>
 <html>
-    <body>
-        <style type="text/css">
-            body
-            {
-                background-color: rgb(255, 255, 255);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                margin: 0;
-                min-width: 100vw;
-                min-height: 100vh;
-            }
-            canvas { border: 1px solid black; }
-        </style>
 
-        <canvas id="canvas" width="1080" height="720"></canvas>
+<body>
+  <style type="text/css">
+    body {
+      background-color: rgb(255, 255, 255);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0;
+      min-width: 100vw;
+      min-height: 100vh;
+    }
 
-        <!-- <script src="webgl.js"></script> -->
-        <script src="resources/twgl/4.x/twgl-full.min.js"></script>
-        <script src="resources/m3.js"></script>
-        <script src="tessellate.js"></script>
-        <script type="text/javascript">
-'use strict';
+    canvas {
+      border: 1px solid black;
+    }
+  </style>
 
-/* global document, window, twgl, m3 */
+  <canvas id="canvas" width="1080" height="720"></canvas>
 
-const canvas = document.querySelector('canvas');
-const gl = canvas.getContext('webgl2'); // may need to fallback to webgl 1.0
+  <!-- <script src="webgl.js"></script> -->
+  <script src="resources/twgl/4.x/twgl-full.min.js"></script>
+  <script src="resources/m3.js"></script>
+  <!-- <script src="gl-matrix-min.js"></script> -->
+  <script src="tessellate.js"></script>
+  <script src="/node_modules/pathkit-wasm/bin/pathkit.js"></script>
+  <script src="svgpath-all.js"></script>
+  <script src="cubic2quad.js"></script>
+  <!-- <script src="/node_modules/svgpath/lib/svgpath.js"></script> -->
+  <script type="text/javascript">
+    'use strict';
+    const { mat2, mat3, mat4, vec2, vec3, vec4 } = glMatrix;
+    const eps = 0.5;
+    // const quads = cubicToQuad(50, 50, 75, 50, 100, 75, 100, 100, eps);
+    // console.log(quads);
 
-const vs = `
+    // convert svg to quad-only segments
+    var transformed = SvgPath('M50,50C75,50,100,75,100,100C75,100,50,125,50,150H111V222L0,0z')
+      .unarc();
+    const path1 = transformed.iterate((segment, index, x, y) => {
+      // console.log(segment); 
+    });
+
+    let showWireframe = false;
+    /*
+    // load pathkit first, to handle geometry
+    PathKitInit({
+      locateFile: (file) => '/node_modules/pathkit-wasm/bin/' + file,
+    }).then((PathKit) => {
+      // Code goes here using PathKit
+      console.log('initialized pathkit');
+
+      const path = PathKit.FromSVGString(
+        'M44.4,20.8c1.5,1.6,13,15.7,13,15.7s-6.4,6.1-6.4,12.5c0,7.5,8.6,14.3,8.6,14.3l-0.9,1.1c-3.3-1.9-8.9-2.1-11.4,0.8c-3.1,3.6,3.9,9.1,3.9,9.1l-0.8,1.1c-2.4-1.8-12.6-11.4-8.3-16.1c2.6-2.9,5.8-3.8,10.3-1.4l-12.1-12.5c7-8.6,8.2-11.1,8.2-13.4c0-4.8-3.4-8.2-5.1-10.4c-0.6-0.9-1.7-1.6-1-2.2C43.1,18.9,43.5,19.7,44.4,20.8z');
+      const bb = path.computeTightBounds();
+      console.log(bb);
+      console.log(path);
+    }); */
+
+    /* global document, window, twgl, m3 */
+    const canvas = document.querySelector('canvas');
+    const gl = canvas.getContext('webgl2'); // may need to fallback to webgl 1.0
+
+    const vs = `
 attribute vec2 a_position;
 uniform mat3 u_matrix;
 void main() {
@@ -38,7 +71,7 @@ void main() {
 }
 `;
 
-const fs = `
+    const fs = `
 precision mediump float;
 uniform vec4 u_color;
 void main() {
@@ -46,8 +79,8 @@ void main() {
 }
 `;
 
-const loopvs_gl1 = `
-#version 100 es
+    const loopvs_gl1 = `
+// #version 100 es
 attribute vec2 a_position;
 attribute vec2 a_texcoord;
 attribute float a_winding;
@@ -61,8 +94,8 @@ void main() {
 }
 `;
 
-const loopfs_gl1 = `
-#version 100 es
+    const loopfs_gl1 = `
+// #version 100 es
 precision mediump float;
 uniform vec4 u_color;
 varying vec2 v_texcoord;
@@ -81,7 +114,7 @@ void main() {
 }
 `;
 
-const loopvs_gl2 = `
+    const loopvs_gl2 = `
 #version 300 es
 in vec2 a_position;
 in vec2 a_texcoord;
@@ -96,7 +129,7 @@ void main() {
 }
 `;
 
-const loopfs_gl2 = `
+    const loopfs_gl2 = `
 #version 300 es
 precision mediump float;
 uniform vec4 u_color;
@@ -126,307 +159,430 @@ void main() {
   // outColor = vec4(u, v, 1, 1);
   // outColor = vec4(0, 0, 1, alpha);
   float c = clamp(alpha, 0.0, 1.0);
+  
   // outColor = vec4(alpha, 0, 0, 1); // to debug alpha
-  outColor = vec4(1, 0, 0, c);
+  outColor = vec4(u_color.xy, 0, c);
 }
 `;
 
-// compiles shaders, links program, looks up locations
-const programInfo = twgl.createProgramInfo(gl, [loopvs_gl2, loopfs_gl2]);
+    // construct shape's (polyline/ears) and add to scene
+    function addShapeFromSvgString(svgstr) {
+      // convert arc to Q or C, make sure only C, Q, L, H, V 
+      // const inputPath = SvgPath('M50,50C75,50,100,75,100,100C75,100,50,125,50,150z').unarc();
+      const inputPath = SvgPath('M0,50L50,50Q100,50,100,100Q50,100,50,150z').unarc();
+      // const inputPath = SvgPath('M0,50L50,50Q100,50,100,100Q50,100,50,150 M25,10,50,10,50,40z').unarc();
 
-// tessellator, a contour is a flattened point-list, and a polygon is a multi-contour
-var ring = [
-  [0, 0, 100, 0, 100, 100, 0, 100],
-  [20, 20, 80, 20, 80, 80, 20, 80],
-];
-var tessRing = tessellate(ring);
-const bufferRing = twgl.createBufferInfoFromArrays(gl, {
-  a_position: {
-    numComponents: 2,
-    data: Float32Array.from(tessRing.vertices),
-  },
-  indices: Array.from(tessRing.triangles),
-});
+      // output data, may have multiple contour
+      let polyContours = []; // array of point contours
+      let earPoints = [];
+      let quadEars = [];
+      let earPtIdx = 0;
+      let curPt = undefined;
+      let curPoly = [];
+      let lastVerb = undefined;
 
-var poly = [
-[
-       0,  0, // 0----1
-      40,  0, // |    |
-      40, 10, // | 3--2
-      10, 10, // | |
-      10, 20, // | 4-5
-      30, 20, // |   |
-      30, 30, // | 7-6
-      10, 30, // | |
-      10, 50, // 9-8
-       0, 50,
-    ],
-];
+      inputPath.iterate((segment, index, x, y) => {
+        console.log(segment);
+        const verb = segment[0];
 
-var tess = tessellate(poly);
-// const nVertices = tess.vertices.length / 2;
-// const nTriangles = tess.triangles.length / 3;
-const bufferTess = twgl.createBufferInfoFromArrays(gl, {
-  a_position: {
-    numComponents: 2,
-    data: Float32Array.from(tess.vertices),
-  },
-  indices: Uint16Array.from(tess.triangles),
-});
+        if (verb === 'M') {
+          if (curPoly.length) {
+            // last countour finishes
+            polyContours.push(curPoly);
+            curPoly = [];
+          } else {
+            curPoly.push(segment[1], segment[2]);
+          }
 
-// calls gl.createBuffer, gl.bindBuffer, gl.bufferData
-const bufferInfo = twgl.createBufferInfoFromArrays(gl, {
-  a_position: {
-    numComponents: 2,
-    data: [
-       0,  0, // 0----1
-      40,  0, // |    |
-      40, 10, // | 3--2
-      10, 10, // | |
-      10, 20, // | 4-5
-      30, 20, // |   |
-      30, 30, // | 7-6
-      10, 30, // | |
-      10, 50, // 9-8
-       0, 50,
-    ],
-  },
-  indices: [
-    0, 1, 2,
-    0, 2, 3,
-    0, 3, 8,
-    0, 8, 9,
-    4, 5, 6,
-    4, 6, 7,
-  ],
-});
+          curPt = [segment[1], segment[2]];
+        }
+        else if (verb === 'H') {
+          // empty for now
+        } else if (verb === 'V') {
+          // empty for now
+        } else if (verb === 'L') {
+          curPt = [segment[1], segment[2]];
+          curPoly.push(...curPt);
+        } else if (verb === 'Q') {
+          // compute this quad
+          const p0 = curPt, p1 = [segment[1], segment[2]], p2 = [segment[3], segment[4]];
+          const v1 = [p1[0] - p0[0], p1[1] - p0[1]];
+          const v2 = [p2[0] - p1[0], p2[1] - p1[1]];
+          const winding = (v1[0] * v2[1] - v1[1] * v2[0] < 0.0) ? 1 : -1;
 
+          // update ears
+          if (lastVerb !== verb) {
+            earPoints.push(...p0);
+          }
+          earPoints.push(...p1, ...p2);
+          quadEars.push([earPtIdx, earPtIdx + 1, earPtIdx + 2, winding > 0 ? 1 : -1]);
+          earPtIdx += 2;
 
-const bufferCurve = twgl.createBufferInfoFromArrays(gl, {
-  a_position: {
-    numComponents: 2,
-    data: [
-      99, 202,
-      99, 98,
-      21, 42,
-    ],
-  },
-  a_texcoord: {
-    numComponents: 2,
-    data: [
-      0, 0,
-      0.5, 0,
-      1, 1,
-    ],
-  },
-  a_winding: {
-    numComponents : 1,
-    data: [1,1,1],
-  },
-  indices: [
-    0, 1, 2,
-  ],
-});
+          // update inner
+          if (winding < 0) {
+            // control point is outside the cage
+            curPoly.push(...p2);
+          } else {
+            // control point is inside the cage
+            curPoly.push(...p1, ...p2);
+          }
+          curPt = p2;
+        } else if (verb === 'C') {
+          if (segment.length == 7) {
+            const quads = cubicToQuad(segment[1], segment[2], segment[3], segment[4], segment[5], segment[6], segment[7], segment[8], eps);
+            // empty for now
+          }
+        } else if (verb === 'z' || verb === 'Z') {
+          if (curPoly.length) {
+            polyContours.push(curPoly);
+            curPoly = [];
+            curPt = undefined;
+          }
 
-const sphereVerts = twgl.primitives.createSphereVertices(1, 24, 12);
-const sphereBufferInfo = twgl.createBufferInfoFromArrays(gl, {
-  a_position: sphereVerts.position,
-  indices: sphereVerts.indices,
-});
+        } else {
+          console.error(`verb not supported: ${verb}`);
+        }
+        lastVerb = verb;
+      });
 
-const camera = {
-  x: 0,
-  y: 0,
-  rotation: 0,
-  zoom: 1,
-};
+      console.log('now checks');
+    }
 
-const scene = [
-  // { x:  20, y:  20, rotation: 0, scale: 1,   color: [1, 0, 0, 1], bufferInfo: bufferInfo},
-  // { x: 200, y: 200, rotation: 0, scale: 1,   color: [1, 0, 1, 1], bufferInfo: bufferRing},
-  // { x: 100, y: 20, rotation: 0, scale: 1,   color: [0, 0, 1, 1], bufferInfo: bufferTess},
-  { x: 300, y: 20, rotation: 0, scale: 1,   color: [1, 0, 0, 1], bufferInfo: bufferCurve},
-];
+    addShapeFromSvgString('');
 
-let viewProjectionMat;
+    // const scene = [];
+    function trianglesTolines(triangles) {
+      let lines = [];
+      for (let i = 0; i < triangles.length / 3; i++) {
+        const i0 = triangles[3 * i], i1 = triangles[3 * i + 1], i2 = triangles[3 * i + 2];
+        lines.push(i0, i1, i1, i2, i2, i0);
+      }
+      return lines;
+    }
 
-function makeCameraMatrix() {
-  const zoomScale = 1 / camera.zoom;
-  let cameraMat = m3.identity();
-  cameraMat = m3.translate(cameraMat, camera.x, camera.y);
-  cameraMat = m3.rotate(cameraMat, camera.rotation);
-  cameraMat = m3.scale(cameraMat, zoomScale, zoomScale);
-  return cameraMat;
-}
+    // compiles shaders, links program, looks up locations
+    const programInfo1 = twgl.createProgramInfo(gl, [vs, fs]);
+    const programInfo2 = twgl.createProgramInfo(gl, [loopvs_gl2, loopfs_gl2]);
 
-function updateViewProjection() {
-  // same as ortho(0, width, height, 0, -1, 1)
-  const projectionMat = m3.projection(gl.canvas.width, gl.canvas.height);
-  const cameraMat = makeCameraMatrix();
-  let viewMat = m3.inverse(cameraMat);
-  viewProjectionMat = m3.multiply(projectionMat, viewMat);
-}
-
-function drawThing(thing) {
-  const {x, y, rotation, scale, color} = thing;
-  const bufferInfo = thing.bufferInfo;
-  
-  // calls gl.bindBuffer, gl.enableVertexAttribArray, gl.vertexAttribPointer
-  twgl.setBuffersAndAttributes(gl, programInfo, bufferInfo);
-
-  let mat = m3.identity();
-  mat = m3.translate(mat, x, y);
-  mat = m3.rotate(mat, rotation);
-  mat = m3.scale(mat, scale, scale);
-
-  // calls gl.uniformXXX
-  twgl.setUniforms(programInfo, {
-    u_matrix: m3.multiply(viewProjectionMat, mat),
-    u_color: color,
-  });
-
-  // calls gl.drawArrays or gl.drawElements
-  twgl.drawBufferInfo(gl, bufferInfo);
-}
-
-function draw() {
-  gl.clearColor(1, 1, 1, 1);
-  gl.clear(gl.COLOR_BUFFER_BIT);
-
-  updateViewProjection();
-    
-  gl.useProgram(programInfo.program);
-
-  scene.forEach(drawThing);
-  
-  if (rotate) {
-    drawThing({
-    	x: startPos[0],
-      y: startPos[1],
-      rotation: 0,
-      scale: 5 / camera.zoom,
-      color: [0, 0, 0, 1],
-      bufferInfo: sphereBufferInfo,
+    // tessellator, a contour is a flattened point-list, and a polygon is a multi-contour
+    var ring = [
+      [0, 0, 100, 0, 100, 100, 0, 100],
+      [20, 20, 80, 20, 80, 80, 20, 80],
+    ];
+    var tessRing = tessellate(ring);
+    const bufferRing = twgl.createBufferInfoFromArrays(gl, {
+      a_position: {
+        numComponents: 2,
+        data: Float32Array.from(tessRing.vertices),
+      },
+      indices: Array.from(tessRing.triangles),
     });
-  }
-}
+    const bufferRingWire = twgl.createBufferInfoFromArrays(gl, {
+      a_position: {
+        numComponents: 2,
+        data: Float32Array.from(tessRing.vertices),
+      },
+      indices: Array.from(trianglesTolines(tessRing.triangles)),
+    });
 
-function getClipSpaceMousePosition(e) {
-  // get canvas relative css position
-  const rect = canvas.getBoundingClientRect();
-  const cssX = e.clientX - rect.left;
-  const cssY = e.clientY - rect.top;
-  
-  // get normalized 0 to 1 position across and down canvas
-  const normalizedX = cssX / canvas.clientWidth;
-  const normalizedY = cssY / canvas.clientHeight;
+    // shape F
+    var poly = [
+      [
+        0, 0, // 0----1
+        40, 0, // |    |
+        40, 10, // | 3--2
+        10, 10, // | |
+        10, 20, // | 4-5
+        30, 20, // |   |
+        30, 30, // | 7-6
+        10, 30, // | |
+        10, 50, // 9-8
+        0, 50,
+      ],
+    ];
 
-  // convert to clip space
-  const clipX = normalizedX *  2 - 1;
-  const clipY = normalizedY * -2 + 1;
-  
-  return [clipX, clipY];
-}
+    var tess = tessellate(poly);
+    const bufferTess = twgl.createBufferInfoFromArrays(gl, {
+      a_position: {
+        numComponents: 2,
+        data: Float32Array.from(tess.vertices),
+      },
+      indices: Uint16Array.from(tess.triangles),
+    });
 
-let startInvViewProjMat;
-let startCamera;
-let startPos;
-let startClipPos;
-let startMousePos;
-let rotate;
+    const bufferTessWire = twgl.createBufferInfoFromArrays(gl, {
+      a_position: {
+        numComponents: 2,
+        data: Float32Array.from(tess.vertices),
+      },
+      indices: Uint16Array.from(trianglesTolines(tess.triangles)),
+    });
 
-function moveCamera(e) {
-  const pos = m3.transformPoint(
-			startInvViewProjMat,
-      getClipSpaceMousePosition(e));
-	
-  camera.x = startCamera.x + startPos[0] - pos[0];
-  camera.y = startCamera.y + startPos[1] - pos[1];
-  draw();
-}
+    // calls gl.createBuffer, gl.bindBuffer, gl.bufferData
+    // const bufferInfo = twgl.createBufferInfoFromArrays(gl, {
+    //   a_position: {
+    //     numComponents: 2,
+    //     data: [
+    //       0, 0, // 0----1
+    //       40, 0, // |    |
+    //       40, 10, // | 3--2
+    //       10, 10, // | |
+    //       10, 20, // | 4-5
+    //       30, 20, // |   |
+    //       30, 30, // | 7-6
+    //       10, 30, // | |
+    //       10, 50, // 9-8
+    //       0, 50,
+    //     ],
+    //   },
+    //   indices: [
+    // 0, 1, 2,
+    // 0, 2, 3,
+    // 0, 3, 8,
+    // 0, 8, 9,
+    // 4, 5, 6,
+    // 4, 6, 7,
+    //   ],
+    // });
 
-function rotateCamera(e) {
-	const delta = (e.clientX - startMousePos[0]) / 100;
+    const bufferCurve = twgl.createBufferInfoFromArrays(gl, {
+      a_position: {
+        numComponents: 2,
+        data: [
+          99, 202,
+          99, 98,
+          21, 42,
+        ],
+      },
+      a_texcoord: {
+        numComponents: 2,
+        data: [
+          0, 0,
+          0.5, 0,
+          1, 1,
+        ],
+      },
+      a_winding: {
+        numComponents: 1,
+        data: [1, 1, 1],
+      },
+      indices: [
+        0, 1, 2,
+      ],
+    });
 
-  // compute a matrix to pivot around the camera space startPos
-  let camMat = m3.identity();
-  camMat = m3.translate(camMat, startPos[0], startPos[1]);
-  camMat = m3.rotate(camMat, delta);
-  camMat = m3.translate(camMat, -startPos[0], -startPos[1]);
-  
-  // multply in the original camera matrix
-  Object.assign(camera, startCamera);
-  camMat = m3.multiply(camMat, makeCameraMatrix());
+    const sphereVerts = twgl.primitives.createSphereVertices(1, 24, 12);
+    const sphereBufferInfo = twgl.createBufferInfoFromArrays(gl, {
+      a_position: sphereVerts.position,
+      indices: sphereVerts.indices,
+    });
 
-	// now we can set the rotation and get the needed
-  // camera position from the matrix
-  camera.rotation = startCamera.rotation + delta;  
-  camera.x = camMat[6];
-  camera.y = camMat[7];
+    const camera = {
+      x: 0,
+      y: 0,
+      rotation: 0,
+      zoom: 1,
+    };
 
-  draw();
-}
+    // contains the different shapes, each shape has polylines and ears.
+    const scene = [
+      // { x: 20, y: 20, rotation: 0, scale: 1, color: [1, 0, 0, 1], bufferInfo: bufferInfo },
+      { x: 200, y: 200, rotation: 0, scale: 1, color: [1, 0, 1, 1], bufferInfo: bufferRing, bufferWire: bufferRingWire, hasCurve: false },
+      { x: 100, y: 20, rotation: 0, scale: 1, color: [0, 0, 1, 1], bufferInfo: bufferTess, bufferWire: bufferTessWire, hasCurve: false },
+      { x: 300, y: 20, rotation: 0, scale: 1, color: [1, 0, 0, 1], bufferInfo: bufferCurve, hasCurve: true },
 
-function handleMouseMove(e) {
-  if (rotate) {
-		rotateCamera(e);
-  } else {
-    moveCamera(e);
-  }
-}
+    ];
 
-function handleMouseUp(e) {
-  rotate = false;
-  draw();
-	window.removeEventListener('mousemove', handleMouseMove);
-	window.removeEventListener('mouseup', handleMouseUp);
-}
+    let viewProjectionMat;
 
-canvas.addEventListener('mousedown', (e) => {
-  e.preventDefault();
-	window.addEventListener('mousemove', handleMouseMove);
-	window.addEventListener('mouseup', handleMouseUp);
+    function makeCameraMatrix() {
+      const zoomScale = 1 / camera.zoom;
+      let cameraMat = m3.identity();
+      cameraMat = m3.translate(cameraMat, camera.x, camera.y);
+      cameraMat = m3.rotate(cameraMat, camera.rotation);
+      cameraMat = m3.scale(cameraMat, zoomScale, zoomScale);
+      return cameraMat;
+    }
 
-  rotate = e.shiftKey;
-  startInvViewProjMat = m3.inverse(viewProjectionMat);
-  startCamera = Object.assign({}, camera);
-  startClipPos = getClipSpaceMousePosition(e);
-  startPos = m3.transformPoint(
-			startInvViewProjMat,
-      startClipPos);
-  startMousePos = [e.clientX, e.clientY];
-  draw();
-});
+    function updateViewProjection() {
+      // same as ortho(0, width, height, 0, -1, 1)
+      const projectionMat = m3.projection(gl.canvas.width, gl.canvas.height);
+      const cameraMat = makeCameraMatrix();
+      let viewMat = m3.inverse(cameraMat);
+      viewProjectionMat = m3.multiply(projectionMat, viewMat);
+    }
 
-canvas.addEventListener('wheel', (e) => {
-  e.preventDefault();  
-  const [clipX, clipY] = getClipSpaceMousePosition(e);
-  
-  // position before zooming
-  const [preZoomX, preZoomY] = m3.transformPoint(
-      m3.inverse(viewProjectionMat), 
-      [clipX, clipY]);
-    
-  // multiply the wheel movement by the current zoom level
-  // so we zoom less when zoomed in and more when zoomed out
-  const newZoom = camera.zoom * Math.pow(2, e.deltaY * -0.01);
-  camera.zoom = Math.max(0.02, Math.min(100, newZoom));
-  
-  updateViewProjection();
-  
-  // position after zooming
-  const [postZoomX, postZoomY] = m3.transformPoint(
-      m3.inverse(viewProjectionMat), 
-      [clipX, clipY]);
+    function drawThing(thing, programInfo) {
+      const { x, y, rotation, scale, color } = thing;
+      const bufferInfo = showWireframe ? thing.bufferWire : thing.bufferInfo;
 
-  // camera needs to be moved the difference of before and after
-  camera.x += preZoomX - postZoomX;
-  camera.y += preZoomY - postZoomY;  
-  
-  draw();
-});
+      // calls gl.bindBuffer, gl.enableVertexAttribArray, gl.vertexAttribPointer
+      twgl.setBuffersAndAttributes(gl, programInfo, bufferInfo);
 
-draw();        
-        </script>
-    </body>
+      let mat = m3.identity();
+      mat = m3.translate(mat, x, y);
+      mat = m3.rotate(mat, rotation);
+      mat = m3.scale(mat, scale, scale);
+
+      // calls gl.uniformXXX
+      twgl.setUniforms(programInfo, {
+        u_matrix: m3.multiply(viewProjectionMat, mat),
+        u_color: color,
+      });
+
+      // calls gl.drawArrays or gl.drawElements
+      twgl.drawBufferInfo(gl, bufferInfo, showWireframe ? gl.LINES : gl.TRIANGLES);
+    }
+
+    function draw() {
+      gl.clearColor(1, 1, 1, 1);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+
+      updateViewProjection();
+
+      // draw scene with shader 1
+      gl.useProgram(programInfo1.program);
+      for (let i = 0; i < scene.length; i++) {
+        drawThing(scene[i], programInfo1);
+      }
+
+      // draw scene with shader 2
+      gl.useProgram(programInfo2.program);
+      for (let i = 0; i < scene.length; i++) {
+        if (scene[i].hasCurve) {
+          drawThing(scene[i], programInfo2);
+        }
+      }
+
+      // if (rotate) {
+      //   drawThing({
+      //     x: startPos[0],
+      //     y: startPos[1],
+      //     rotation: 0,
+      //     scale: 5 / camera.zoom,
+      //     color: [0, 0, 0, 1],
+      //     bufferInfo: sphereBufferInfo,
+      //   }, programInfo2);
+      // }
+    }
+
+    function getClipSpaceMousePosition(e) {
+      // get canvas relative css position
+      const rect = canvas.getBoundingClientRect();
+      const cssX = e.clientX - rect.left;
+      const cssY = e.clientY - rect.top;
+
+      // get normalized 0 to 1 position across and down canvas
+      const normalizedX = cssX / canvas.clientWidth;
+      const normalizedY = cssY / canvas.clientHeight;
+
+      // convert to clip space
+      const clipX = normalizedX * 2 - 1;
+      const clipY = normalizedY * -2 + 1;
+
+      return [clipX, clipY];
+    }
+
+    let startInvViewProjMat;
+    let startCamera;
+    let startPos;
+    let startClipPos;
+    let startMousePos;
+    let rotate;
+
+    function moveCamera(e) {
+      const pos = m3.transformPoint(
+        startInvViewProjMat,
+        getClipSpaceMousePosition(e));
+
+      camera.x = startCamera.x + startPos[0] - pos[0];
+      camera.y = startCamera.y + startPos[1] - pos[1];
+      draw();
+    }
+
+    function rotateCamera(e) {
+      const delta = (e.clientX - startMousePos[0]) / 100;
+
+      // compute a matrix to pivot around the camera space startPos
+      let camMat = m3.identity();
+      camMat = m3.translate(camMat, startPos[0], startPos[1]);
+      camMat = m3.rotate(camMat, delta);
+      camMat = m3.translate(camMat, -startPos[0], -startPos[1]);
+
+      // multply in the original camera matrix
+      Object.assign(camera, startCamera);
+      camMat = m3.multiply(camMat, makeCameraMatrix());
+
+      // now we can set the rotation and get the needed
+      // camera position from the matrix
+      camera.rotation = startCamera.rotation + delta;
+      camera.x = camMat[6];
+      camera.y = camMat[7];
+
+      draw();
+    }
+
+    function handleMouseMove(e) {
+      if (rotate) {
+        rotateCamera(e);
+      } else {
+        moveCamera(e);
+      }
+    }
+
+    function handleMouseUp(e) {
+      rotate = false;
+      draw();
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+
+      rotate = e.shiftKey;
+      startInvViewProjMat = m3.inverse(viewProjectionMat);
+      startCamera = Object.assign({}, camera);
+      startClipPos = getClipSpaceMousePosition(e);
+      startPos = m3.transformPoint(
+        startInvViewProjMat,
+        startClipPos);
+      startMousePos = [e.clientX, e.clientY];
+      draw();
+    });
+
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const [clipX, clipY] = getClipSpaceMousePosition(e);
+
+      // position before zooming
+      const [preZoomX, preZoomY] = m3.transformPoint(
+        m3.inverse(viewProjectionMat),
+        [clipX, clipY]);
+
+      // multiply the wheel movement by the current zoom level
+      // so we zoom less when zoomed in and more when zoomed out
+      const newZoom = camera.zoom * Math.pow(2, e.deltaY * -0.01);
+      camera.zoom = Math.max(0.02, Math.min(100, newZoom));
+
+      updateViewProjection();
+
+      // position after zooming
+      const [postZoomX, postZoomY] = m3.transformPoint(
+        m3.inverse(viewProjectionMat),
+        [clipX, clipY]);
+
+      // camera needs to be moved the difference of before and after
+      camera.x += preZoomX - postZoomX;
+      camera.y += preZoomY - postZoomY;
+
+      draw();
+    });
+
+    draw();        
+  </script>
+</body>
+
 </html>
