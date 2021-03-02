@@ -186,7 +186,8 @@ void main() {
       // const inputPath = SvgPath('M0,50L50,50Q100,50,100,100Q50,100,50,150z').unarc();
       // const inputPath = SvgPath('M0,50L50,50Q100,50,100,100Q50,100,50,150 M25,60L50,60L50,80z').unarc();
       // const inputPath = SvgPath('M0,50L50,50Q100,50,100,100Q50,100,50,150 M25,60Q50,60,50,80z').unarc();
-      const inputPath = SvgPath('M0,50L50,50C75,50,100,75,100,100C75,100,50,125,50,150z').unarc();
+      // const inputPath = SvgPath('M0,50L50,50C75,50,100,75,100,100C75,100,50,125,50,150z').unarc();
+      const inputPath = SvgPath('M0,50H50C75,50,100,75,100,100C75,100,50,125,50,150z').unarc(); // test 'H'
 
       // output data, may have multiple contour
       let polyContours = []; // array of point contours
@@ -214,8 +215,12 @@ void main() {
           curPt = [segment[1], segment[2]];
         }
         else if (verb === 'H') {
+          curPt = [curPt[0]+segment[1], curPt[1]];
+          curPoly.push(...curPt);
           // empty for now
         } else if (verb === 'V') {
+          curPt = [curPt[0], curPt[1]+segment[1]];
+          curPoly.push(...curPt);
           // empty for now
         } else if (verb === 'L') {
           curPt = [segment[1], segment[2]];
