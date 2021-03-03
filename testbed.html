@@ -51,7 +51,7 @@
       // console.log('page is fully loaded');
     };
 
-    function loadFont(font, path, x, y, scale, str, isInverted) {
+    function loadFont(font, path, x, y, scale, str, isInvertedFont) {
       var xhr = new XMLHttpRequest();
       xhr.open('GET', path, true);
       xhr.responseType = 'arraybuffer';
@@ -62,14 +62,14 @@
           var fkBuffer = new Buffer(fkBlob);
           font = fontkit.create(fkBuffer);
 
-          addGlyphRun(font, x, y, scale, str, isInverted);
+          addGlyphRun(font, x, y, scale, str, isInvertedFont);
           draw();
         }
       }
       xhr.send();
     }
 
-    function addGlyphRun(font, startX, startY, scale, str, isInverted) {
+    function addGlyphRun(font, startX, startY, scale, str, isInvertedFont) {
       if (!font) return;
       let run = font.layout(str);
       let x = startX, y = startY;
@@ -77,25 +77,26 @@
         const pos = run.positions[index];
         const glyphString = run.glyphs[index].path.toSVG();
         if (glyphString.length > 0) {
+          // swtich to y coordinate
           const inverted = SvgPath(glyphString).scale(1, -1).toString();
           let si = null;
-          if (isInverted) {
+          if (!isInvertedFont) {
             si = shapeFromSvgString(inverted);
           } else {
             si = shapeFromSvgString(glyphString);
           }
 
-          addShape(x + pos.xOffset * scale, y + pos.yOffset * scale, scale, [0, 0, 0, 1], si, isInverted);
+          addShape(x + pos.xOffset * scale, y + pos.yOffset * scale, scale, [0, 0, 0, 1], si, isInvertedFont);
         }
         x += pos.xAdvance * scale;
         y += pos.yAdvance * scale;
       });
     }
 
-    // font family (typeface) 
+    // font family (typeface), otf font has inverted winding
     let font1 = null, font2 = null, font3 = null, font4 = null;
     const testString = 'Hello world Path rendering!';
-    loadFont(font1, 'Roboto-Regular.ttf', 200, 200, 0.1, testString, true);
+    loadFont(font1, 'Roboto-Regular.ttf', 200, 200, 0.1, testString, false);
     // loadFont(font2, 'Roboto-MediumItalic.ttf', 200, 400, 0.1, testString);
     // loadFont(font3, 'Roboto-Medium.ttf', 200, 600, 0.1, testString);
     // loadFont(font4, 'Roboto-Italic.ttf', 200, 800, 0.1, testString);
@@ -105,10 +106,10 @@
     console.log('\u3053\u3093\u306B\u3061\u306F\u30D1\u30B9\u30EC\u30F3\u30C0\u30EA\u30F3\u30B0'); // 你好曲线渲染
 
     let fontCh = null;
-    loadFont(fontCh, 'NotoSansSC-Regular.otf', 200, 1400, 0.1, '\u4F60\u597D\u66F2\u7EBF\u6E32\u67D3', false);
+    loadFont(fontCh, 'NotoSansSC-Regular.otf', 200, 1400, 0.1, '\u4F60\u597D\u66F2\u7EBF\u6E32\u67D3', true);
 
     let fontCJK = null;
-    loadFont(fontCJK, 'NotoSansCJKjp-Regular.otf', 200, 1800, 0.1, '\u3053\u3093\u306B\u3061\u306F\u30D1\u30B9\u30EC\u30F3\u30C0\u30EA\u30F3\u30B0', false);
+    loadFont(fontCJK, 'NotoSansCJKjp-Regular.otf', 200, 1800, 0.1, '\u3053\u3093\u306B\u3061\u306F\u30D1\u30B9\u30EC\u30F3\u30C0\u30EA\u30F3\u30B0', true);
 
 
 
@@ -632,9 +633,9 @@ void main() {
 
       // handle fonts
       if (yInverted) {
-        mat = m3.scale(mat, scale, scale);
-      } else {
         mat = m3.scale(mat, scale, -scale);
+      } else {
+        mat = m3.scale(mat, scale, scale);
       }
 
       // calls gl.uniformXXX
