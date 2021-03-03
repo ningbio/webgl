@@ -63,13 +63,24 @@
           font = fontkit.create(fkBuffer);
 
           // draw font!
-          let run = font.layout('hello world!');
+          let run = font.layout('gello world!');
 
-          const glyphString = run.glyphs[0].path.toSVG();
-          const si = shapeFromSvgString(glyphString);
-          addShape(400, 400, 0.1, [0, 0, 0, 1], si);
-          console.log(glyphString);
+          // const glyphString = run.glyphs[0].path.toSVG();
+          // glyph coordinate y is inverted, so need preprocessing
+          let x = 200, y = 200;
+          const scale = 0.1;
+          run.glyphs.forEach((glyph, index) => {
+            const pos = run.positions[index];
+            const glyphString = run.glyphs[index].path.toSVG();
+            if (glyphString.length > 0) {
+              const si = shapeFromSvgString(glyphString);
+              addShape(x + pos.xOffset * scale, y + pos.yOffset * scale, scale, [0, 0, 0, 1], si);
+            }
+            x += pos.xAdvance * scale;
+            y += pos.yAdvance * scale;
+          });
 
+          draw();
         }
       }
       xhr.send();
