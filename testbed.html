@@ -30,6 +30,7 @@
   <script src="svgpath-all.js"></script>
   <script src="cubic2quad.js"></script>
   <!-- <script src="/node_modules/svgpath/lib/svgpath.js"></script> -->
+  <script type="text/javascript" src="fontkit.js"></script>
   <script type="text/javascript">
     'use strict';
     // const { mat2, mat3, mat4, vec2, vec3, vec4 } = glMatrix;
@@ -45,9 +46,37 @@
       // console.log(segment); 
     });
 
+    let font = null;
+    window.onload = (event) => {
+      console.log('page is fully loaded');
+
+      loadFont(font, 'Roboto-Regular.ttf');
+
+    };
+
+    function loadFont(font, path) {
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', path, true);
+      xhr.responseType = 'arraybuffer';
+
+      xhr.onload = function (e) {
+        if (this.status == 200) {
+          var fkBlob = this.response;
+          var fkBuffer = new Buffer(fkBlob);
+          font = fontkit.create(fkBuffer);
+
+          // draw font!
+        }
+      }
+      xhr.send();
+    }
+
+    loadFont(font, 'Roboto-Regular.ttf');
+    // console.log(font);
+
     let showWireframe = false;
     const MIN_ZOOM = 0.01;
-    const MAX_ZOOM = 400;
+    const MAX_ZOOM = 4000;
     /*
     // load pathkit first, to handle geometry
     PathKitInit({
@@ -182,7 +211,7 @@ void main() {
     // construct shape's (polyline/ears) and add to scene
     function shapeFromSvgString(svgstr) {
       // convert arc to Q or C, make sure only C, Q, L, H, V 
-      
+
       // const inputPath = SvgPath('M0,50L50,50Q100,50,100,100Q50,100,50,150z').unarc();
       // const inputPath = SvgPath('M0,50L50,50Q100,50,100,100Q50,100,50,150 M25,60L50,60L50,80z').unarc();
       // const inputPath = SvgPath('M0,50L50,50Q100,50,100,100Q50,100,50,150 M25,60Q50,60,50,80z').unarc();
@@ -215,11 +244,11 @@ void main() {
           curPt = [segment[1], segment[2]];
         }
         else if (verb === 'H') {
-          curPt = [curPt[0]+segment[1], curPt[1]];
+          curPt = [curPt[0] + segment[1], curPt[1]];
           curPoly.push(...curPt);
           // empty for now
         } else if (verb === 'V') {
-          curPt = [curPt[0], curPt[1]+segment[1]];
+          curPt = [curPt[0], curPt[1] + segment[1]];
           curPoly.push(...curPt);
           // empty for now
         } else if (verb === 'L') {
@@ -252,19 +281,19 @@ void main() {
           if (segment.length == 7) {
             const quads = cubicToQuad(curPt[0], curPt[1], segment[1], segment[2], segment[3], segment[4], segment[5], segment[6], eps);
             const nPoints = quads.length / 2;
-            const nSeg = (nPoints-1)/2;
+            const nSeg = (nPoints - 1) / 2;
             const cur = [quads[0], quads[1]];
 
             const points = [];
             for (let i = 0; i < nPoints; i++) {
-              points.push([quads[2*i], quads[2*i+1]]);
+              points.push([quads[2 * i], quads[2 * i + 1]]);
             }
 
             // loop each segment
             for (let i = 0; i < nSeg; i++) {
-              const p0 = points[2*i+0], p1 = points[2*i+1], p2 = points[2*i+2];              
+              const p0 = points[2 * i + 0], p1 = points[2 * i + 1], p2 = points[2 * i + 2];
               const winding = calcWinding(p0, p1, p2);
-              
+
               // update ear data if is continued quad, already pushed
               if (i === 0 && lastVerb !== 'Q') {
                 earPtIdx++;
@@ -285,7 +314,7 @@ void main() {
               }
             } // end of loop
 
-            curPt = [quads[quads.length-2], quads[quads.length-1]];
+            curPt = [quads[quads.length - 2], quads[quads.length - 1]];
           }
         } else if (verb === 'z' || verb === 'Z') {
           if (curPoly.length >= 6) {
@@ -307,30 +336,27 @@ void main() {
       }
     }
 
-
-    
-
     // create buffer and add the shape to scene
     function addShape(x, y, scale, color, shapeInfo) {
       // create buffer for innerPoly 
       const tessellatedPoly = tessellate(shapeInfo.polyContours);
       const polyBuffer = twgl.createBufferInfoFromArrays(gl, {
-      a_position: {
-        numComponents: 2,
-        data: Float32Array.from(tessellatedPoly.vertices),
-      },
-      indices: Array.from(tessellatedPoly.triangles),
+        a_position: {
+          numComponents: 2,
+          data: Float32Array.from(tessellatedPoly.vertices),
+        },
+        indices: Array.from(tessellatedPoly.triangles),
       });
 
-    // extra buffer for wireframe, for debug purpose
-    const polyWireBuffer = twgl.createBufferInfoFromArrays(gl, {
-      a_position: {
-        numComponents: 2,
-        data: Float32Array.from(tessellatedPoly.vertices),
-      },
-      indices: Array.from(trianglesTolines(tessellatedPoly.triangles)),
+      // extra buffer for wireframe, for debug purpose
+      const polyWireBuffer = twgl.createBufferInfoFromArrays(gl, {
+        a_position: {
+          numComponents: 2,
+          data: Float32Array.from(tessellatedPoly.vertices),
+        },
+        indices: Array.from(trianglesTolines(tessellatedPoly.triangles)),
       });
-      
+
       // add to scene
       scene.push({ x: x, y: y, rotation: 0, scale: scale, color: color, bufferInfo: polyBuffer, bufferWire: polyWireBuffer, hasCurve: false });
 
@@ -342,47 +368,43 @@ void main() {
       let windings = [];
       // let indices = [];
 
-      for(let i = 0; i < nEars; i++) {
+      for (let i = 0; i < nEars; i++) {
         const earData = shapeInfo.quadEars[i];
         for (let k = 0; k < 3; k++) {
           const idx = earData[k];
-          const px = shapeInfo.earPoints[2*idx];
-          const py = shapeInfo.earPoints[2*idx+1];
+          const px = shapeInfo.earPoints[2 * idx];
+          const py = shapeInfo.earPoints[2 * idx + 1];
           pts.push(px, py);
         }
 
         uv.push(0, 0, 0.5, 0, 1, 1);
         // indices.push(earData[0], earData[1], earData[2]);
-        windings.push(earData[3], earData[3], earData[3]);        
+        windings.push(earData[3], earData[3], earData[3]);
       }
 
       const curveBuffer = twgl.createBufferInfoFromArrays(gl, {
-      a_position: {
-        numComponents: 2,
-        data: pts,
-      },
-      a_texcoord: {
-        numComponents: 2,
-        data: uv,
-      },
-      a_winding: {
-        numComponents: 1,
-        data: windings,
-      },
-      // indices: indices,
-    });
+        a_position: {
+          numComponents: 2,
+          data: pts,
+        },
+        a_texcoord: {
+          numComponents: 2,
+          data: uv,
+        },
+        a_winding: {
+          numComponents: 1,
+          data: windings,
+        },
+        // indices: indices,
+      });
 
       // add to scene
       scene.push({ x: x, y: y, rotation: 0, scale: scale, color: color, bufferInfo: curveBuffer, hasCurve: true });
-
-
-
-    } 
+    }
 
     const testShape = shapeFromSvgString('');
     addShape(400, 300, 1, [1, 0, 0, 1], testShape);
 
-    
     function trianglesTolines(triangles) {
       let lines = [];
       for (let i = 0; i < triangles.length / 3; i++) {
@@ -579,7 +601,7 @@ void main() {
     }
 
     function draw() {
-      gl.clearColor(1,1,1, 1);
+      gl.clearColor(1, 1, 1, 1);
       gl.clear(gl.COLOR_BUFFER_BIT);
 
       updateViewProjection();
@@ -727,12 +749,12 @@ void main() {
     });
 
     // key listener
-    window.addEventListener('keydown',(e)=>{
+    window.addEventListener('keydown', (e) => {
       if (e.key === 'w' || e.key === 'W') {
         showWireframe = !showWireframe;
       }
       draw();
-    },false);
+    }, false);
 
 
     draw();        
