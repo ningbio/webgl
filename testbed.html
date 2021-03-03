@@ -51,7 +51,7 @@
       console.log('page is fully loaded');
     };
 
-    function loadFont(font, path) {
+    function loadFont(font, path, x, y, scale, str) {
       var xhr = new XMLHttpRequest();
       xhr.open('GET', path, true);
       xhr.responseType = 'arraybuffer';
@@ -62,8 +62,7 @@
           var fkBuffer = new Buffer(fkBlob);
           font = fontkit.create(fkBuffer);
 
-          addGlyphRun(font, 200, 200, 0.1, 'gello world!');
-
+          addGlyphRun(font, x, y, scale, str);
           draw();
         }
       }
@@ -86,7 +85,7 @@
       });
     }
 
-    loadFont(font1, 'Roboto-Regular.ttf');
+    loadFont(font1, 'Roboto-Regular.ttf', 200, 200, 0.1, 'gello world!');
 
 
     let showWireframe = false;
