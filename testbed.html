@@ -62,28 +62,28 @@
           var fkBuffer = new Buffer(fkBlob);
           font = fontkit.create(fkBuffer);
 
-          // draw font!
-          let run = font.layout('gello world!');
-
-          // const glyphString = run.glyphs[0].path.toSVG();
-          // glyph coordinate y is inverted, so need preprocessing
-          let x = 200, y = 200;
-          const scale = 0.1;
-          run.glyphs.forEach((glyph, index) => {
-            const pos = run.positions[index];
-            const glyphString = run.glyphs[index].path.toSVG();
-            if (glyphString.length > 0) {
-              const si = shapeFromSvgString(glyphString);
-              addShape(x + pos.xOffset * scale, y + pos.yOffset * scale, scale, [0, 0, 0, 1], si);
-            }
-            x += pos.xAdvance * scale;
-            y += pos.yAdvance * scale;
-          });
+          addGlyphRun(font, 200, 200, 0.1, 'gello world!');
 
           draw();
         }
       }
       xhr.send();
+    }
+
+    function addGlyphRun(font, startX, startY, scale, str) {
+      if (!font) return;
+      let run = font.layout(str);
+      let x = startX, y = startY;
+      run.glyphs.forEach((glyph, index) => {
+        const pos = run.positions[index];
+        const glyphString = run.glyphs[index].path.toSVG();
+        if (glyphString.length > 0) {
+          const si = shapeFromSvgString(glyphString);
+          addShape(x + pos.xOffset * scale, y + pos.yOffset * scale, scale, [0, 0, 0, 1], si);
+        }
+        x += pos.xAdvance * scale;
+        y += pos.yAdvance * scale;
+      });
     }
 
     loadFont(font1, 'Roboto-Regular.ttf');
