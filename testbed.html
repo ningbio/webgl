@@ -46,7 +46,7 @@
       // console.log(segment); 
     });
 
-    let font1 = null;
+
     window.onload = (event) => {
       console.log('page is fully loaded');
     };
@@ -77,7 +77,8 @@
         const pos = run.positions[index];
         const glyphString = run.glyphs[index].path.toSVG();
         if (glyphString.length > 0) {
-          const si = shapeFromSvgString(glyphString);
+          const inverted = SvgPath(glyphString).scale(1, -1).toString();
+          const si = shapeFromSvgString(inverted);
           addShape(x + pos.xOffset * scale, y + pos.yOffset * scale, scale, [0, 0, 0, 1], si);
         }
         x += pos.xAdvance * scale;
@@ -85,7 +86,13 @@
       });
     }
 
-    loadFont(font1, 'Roboto-Regular.ttf', 200, 200, 0.1, 'gello world!');
+    // font family (typeface) 
+    let font1 = null, font2 = null, font3 = null, font4 = null;
+    const testString = 'Hello world Path rendering!';
+    loadFont(font1, 'Roboto-Regular.ttf', 200, 200, 0.1, 'Hello world Path rendering!');
+    loadFont(font2, 'Roboto-MediumItalic.ttf', 200, 400, 0.1, 'Hello world Path rendering!');
+    loadFont(font3, 'Roboto-Medium.ttf', 200, 600, 0.1, 'Hello world Path rendering!');
+    loadFont(font4, 'Roboto-Italic.ttf', 200, 800, 0.1, 'Hello world Path rendering!');
 
 
     let showWireframe = false;
@@ -562,7 +569,7 @@ void main() {
     };
 
     const testCubic = shapeFromSvgString('M0,50L50,50C75,50,100,75,100,100C75,100,50,125,50,150z');
-    addShape(200, 400, 1, [0, 0, 1, 1], testCubic);
+    addShape(100, 100, 1, [0, 0, 1, 1], testCubic);
 
     // contains the different shapes, each shape has polylines and ears.
     scene.push(
@@ -749,6 +756,8 @@ void main() {
       // so we zoom less when zoomed in and more when zoomed out
       const newZoom = camera.zoom * Math.pow(2, e.deltaY * -0.01);
       camera.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newZoom));
+      window.document.title = `Zoom ${Math.ceil(camera.zoom * 100)}%`;
+
 
       updateViewProjection();
 
