@@ -39,7 +39,8 @@
       canvas.on('mouse:wheel', function (opt) {
         var delta = opt.e.deltaY;
         var zoom = canvas.getZoom();
-        zoom *= 0.999 ** delta;
+        zoom = zoom * Math.pow(2, delta * -0.01);
+        // zoom *= 0.999 ** delta;
         if (zoom > MAX_ZOOM) zoom = MAX_ZOOM;
         if (zoom < MIN_ZOOM) zoom = MIN_ZOOM;
         window.document.title = `Zoom ${Math.ceil(zoom * 100)}%`;
