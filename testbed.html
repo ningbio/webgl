@@ -46,12 +46,9 @@
       // console.log(segment); 
     });
 
-    let font = null;
+    let font1 = null;
     window.onload = (event) => {
       console.log('page is fully loaded');
-
-      loadFont(font, 'Roboto-Regular.ttf');
-
     };
 
     function loadFont(font, path) {
@@ -66,13 +63,20 @@
           font = fontkit.create(fkBuffer);
 
           // draw font!
+          let run = font.layout('hello world!');
+
+          const glyphString = run.glyphs[0].path.toSVG();
+          const si = shapeFromSvgString(glyphString);
+          addShape(400, 400, 0.1, [0, 0, 0, 1], si);
+          console.log(glyphString);
+
         }
       }
       xhr.send();
     }
 
-    loadFont(font, 'Roboto-Regular.ttf');
-    // console.log(font);
+    loadFont(font1, 'Roboto-Regular.ttf');
+
 
     let showWireframe = false;
     const MIN_ZOOM = 0.01;
@@ -216,7 +220,8 @@ void main() {
       // const inputPath = SvgPath('M0,50L50,50Q100,50,100,100Q50,100,50,150 M25,60L50,60L50,80z').unarc();
       // const inputPath = SvgPath('M0,50L50,50Q100,50,100,100Q50,100,50,150 M25,60Q50,60,50,80z').unarc();
       // const inputPath = SvgPath('M0,50L50,50C75,50,100,75,100,100C75,100,50,125,50,150z').unarc();
-      const inputPath = SvgPath('M0,50H50C75,50,100,75,100,100C75,100,50,125,50,150z').unarc(); // test 'H'
+      // const inputPath = SvgPath('M0,50H50C75,50,100,75,100,100C75,100,50,125,50,150z').unarc(); // test 'H'
+      const inputPath = SvgPath(svgstr).unarc();
 
       // output data, may have multiple contour
       let polyContours = []; // array of point contours
@@ -402,9 +407,6 @@ void main() {
       scene.push({ x: x, y: y, rotation: 0, scale: scale, color: color, bufferInfo: curveBuffer, hasCurve: true });
     }
 
-    const testShape = shapeFromSvgString('');
-    addShape(400, 300, 1, [1, 0, 0, 1], testShape);
-
     function trianglesTolines(triangles) {
       let lines = [];
       for (let i = 0; i < triangles.length / 3; i++) {
@@ -548,6 +550,9 @@ void main() {
       rotation: 0,
       zoom: 1,
     };
+
+    const testCubic = shapeFromSvgString('M0,50L50,50C75,50,100,75,100,100C75,100,50,125,50,150z');
+    addShape(200, 400, 1, [0, 0, 1, 1], testCubic);
 
     // contains the different shapes, each shape has polylines and ears.
     scene.push(
