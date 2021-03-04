@@ -96,10 +96,10 @@
     // font family (typeface), otf font has inverted winding
     let font1 = null, font2 = null, font3 = null, font4 = null;
     const testString = 'Hello world Path rendering!';
-    loadFont(font1, 'Roboto-Regular.ttf', 200, 200, 0.1, testString, false);
-    // loadFont(font2, 'Roboto-MediumItalic.ttf', 200, 400, 0.1, testString);
-    // loadFont(font3, 'Roboto-Medium.ttf', 200, 600, 0.1, testString);
-    // loadFont(font4, 'Roboto-Italic.ttf', 200, 800, 0.1, testString);
+    loadFont(font1, 'Roboto-Regular.ttf', 200, 500, 0.05, testString, false);
+    loadFont(font2, 'Roboto-Italic.ttf', 200, 700, 0.05, testString);
+    loadFont(font3, 'Roboto-Medium.ttf', 200, 900, 0.05, testString);
+    loadFont(font4, 'Roboto-MediumItalic.ttf', 200, 1100, 0.05, testString);
 
 
     console.log('\u4F60\u597D\u66F2\u7EBF\u6E32\u67D3'); // 你好曲线渲染
@@ -109,7 +109,7 @@
     loadFont(fontCh, 'NotoSansSC-Regular.otf', 200, 1400, 0.1, '\u4F60\u597D\u66F2\u7EBF\u6E32\u67D3', true);
 
     let fontCJK = null;
-    loadFont(fontCJK, 'NotoSansCJKjp-Regular.otf', 200, 1800, 0.1, '\u3053\u3093\u306B\u3061\u306F\u30D1\u30B9\u30EC\u30F3\u30C0\u30EA\u30F3\u30B0', true);
+    loadFont(fontCJK, 'NotoSansCJKjp-Regular.otf', 200, 1700, 0.1, '\u3053\u3093\u306B\u3061\u306F\u30D1\u30B9\u30EC\u30F3\u30C0\u30EA\u30F3\u30B0', true);
 
 
 
@@ -135,6 +135,13 @@
 
     /* global document, window, twgl, m3 */
     const canvas = document.querySelector('canvas');
+    const desiredWidthInCSSPixels = canvas.width; // the css pixe size at the top of this file
+    const desiredHeightInCSSPixels = canvas.height;
+    canvas.style.width = desiredWidthInCSSPixels + "px";
+    canvas.style.height = desiredHeightInCSSPixels + "px";
+    var devicePixelRatio = window.devicePixelRatio || 1;
+    canvas.width = desiredWidthInCSSPixels * devicePixelRatio;
+    canvas.height = desiredHeightInCSSPixels * devicePixelRatio;
     const gl = canvas.getContext('webgl2'); // may need to fallback to webgl 1.0
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -589,15 +596,15 @@ void main() {
     };
 
     const testCubic = shapeFromSvgString('M0,50L50,50C75,50,100,75,100,100C75,100,50,125,50,150z');
-    addShape(100, 100, 1, [0, 0, 1, 1], testCubic, false);
+    addShape(50, 100, 1, [0, 0, 1, 1], testCubic, false);
 
     // contains the different shapes, each shape has polylines and ears.
     scene.push(
       // { x: 20, y: 20, rotation: 0, scale: 1, color: [1, 0, 0, 1], bufferInfo: bufferInfo },
       { x: 200, y: 200, rotation: 0, scale: 1, color: [1, 0, 1, 0.5], bufferInfo: bufferRing, bufferWire: bufferRingWire, hasCurve: false },
-      { x: 230, y: 200, rotation: 0, scale: 1, color: [0, 0, 1, 0.5], bufferInfo: bufferRing, bufferWire: bufferRingWire, hasCurve: false },
+      { x: 230, y: 230, rotation: 0, scale: 1, color: [0, 0, 1, 0.5], bufferInfo: bufferRing, bufferWire: bufferRingWire, hasCurve: false },
       { x: 100, y: 20, rotation: 0, scale: 1, color: [0, 0, 1, 1], bufferInfo: bufferTess, bufferWire: bufferTessWire, hasCurve: false },
-      { x: 300, y: 20, rotation: 0, scale: 1, color: [0, 0, 1, 1], bufferInfo: bufferCurve, hasCurve: true },
+      { x: 300, y: 20, rotation: 0, scale: 1, color: [1, 0, 0, 1], bufferInfo: bufferCurve, hasCurve: true },
     );
 
     let viewProjectionMat;
