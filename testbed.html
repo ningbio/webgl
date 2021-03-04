@@ -293,11 +293,11 @@ void main() {
           curPt = [segment[1], segment[2]];
         }
         else if (verb === 'H') {
-          curPt = [curPt[0] + segment[1], curPt[1]];
+          curPt = [segment[1], curPt[1]];
           curPoly.push(...curPt);
           // empty for now
         } else if (verb === 'V') {
-          curPt = [curPt[0], curPt[1] + segment[1]];
+          curPt = [curPt[0], segment[1]];
           curPoly.push(...curPt);
           // empty for now
         } else if (verb === 'L') {
@@ -595,16 +595,28 @@ void main() {
       zoom: 1,
     };
 
+    // add some simple shapes
     const testCubic = shapeFromSvgString('M0,50L50,50C75,50,100,75,100,100C75,100,50,125,50,150z');
-    addShape(50, 100, 1, [0, 0, 1, 1], testCubic, false);
+    addShape(50, 0, 1, [0, 0, 1, 1], testCubic, false);
+    addShape(150, 0, 1, [0, 0, 1, 0.5], testCubic, false);
+
+
+    addShape(-500, 100, 0.3, [0.6, 0.25, 0.25, 1], shapeFromSvgString(SvgPath('M202 58C202 88.9279 156.781 114 101 114C45.2192 114 0 88.9279 0 58C0 27.0721 45.2192 0.5 101 0.5C156.781 0.5 202 27.0721 202 58Z').unarc().toString()), false); // oval
+    addShape(-500, 200, 0.3, [0.6, 0.25, 0.25, 1], shapeFromSvgString(SvgPath(`M128.596 52.5962C131.135 50.0578 131.135 45.9422 128.596 43.4038L87.2304 2.03806C84.692 -0.500349 80.5765 -0.500349 78.0381 2.03806C75.4997 4.57647 75.4997 8.69204 78.0381 11.2304L114.808 48L78.0381 84.7696C75.4997 87.308 75.4997 91.4235 78.0381 93.9619C80.5765 96.5003 84.692 96.5003 87.2304 93.9619L128.596 52.5962ZM0 54.5H124V41.5H0L0 54.5Z`).unarc().toString()), true);
+    addShape(-500, 300, 0.3, [0.2, 0.5, 0, 1], shapeFromSvgString(SvgPath(`M73 0L145.746 114H0.253868L73 0Z`).unarc().toString()), false);
+    addShape(-500, 400, 0.3, [0.2, 0.5, 0, 1], shapeFromSvgString(SvgPath(`M40.1402 9.42085C48.0031 -2.90099 65.9969 -2.90099 73.8598 9.42085L110.118 66.2414C118.614 79.5548 109.052 97 93.2585 97H20.7415C4.94839 97 -4.61391 79.5548 3.88168 66.2414L40.1402 9.42085Z`).unarc().toString()), false);
+    addShape(-500, 500, 0.3, [0.2, 0, 1, 1], shapeFromSvgString(SvgPath(`M65.014 4.2216C71.6822 -0.161684 80.3178 -0.161691 86.986 4.22159L142.729 40.8641C150.449 45.9389 153.689 55.6413 150.566 64.3364L130.129 121.245C127.276 129.188 119.745 134.485 111.306 134.485H40.6942C32.2548 134.485 24.7236 129.188 21.8712 121.245L1.43404 64.3364C-1.68855 55.6413 1.55092 45.939 9.2711 40.8641L65.014 4.2216Z`).unarc().toString()), false);
+    addShape(-500, 600, 0.3, [0.2, 0, 1, 1], shapeFromSvgString(SvgPath(`M80 0L159.889 52.5147L129.374 137.485H30.626L0.111252 52.5147L80 0Z`).unarc().toString()), false);
+    addShape(-500, 700, 0.3, [0, 0, 1, 0.5], shapeFromSvgString(SvgPath(`M79.5 0L98.2469 53.5512L158.913 53.5512L109.833 86.6476L128.58 140.199L79.5 107.102L30.4199 140.199L49.1668 86.6476L0.0867844 53.5512L60.7531 53.5512L79.5 0Z`).unarc().toString()), false);
+    addShape(-500, 800, 0.3, [0, 0, 0.7, 1], shapeFromSvgString(SvgPath(`M0 24C0 10.7452 10.7452 0 24 0H102H180C193.255 0 204 10.7452 204 24V94C204 107.255 193.255 118 180 118H24C10.7452 118 0 107.255 0 94V24Z`).unarc().toString()), false);
 
     // contains the different shapes, each shape has polylines and ears.
     scene.push(
       // { x: 20, y: 20, rotation: 0, scale: 1, color: [1, 0, 0, 1], bufferInfo: bufferInfo },
-      { x: 200, y: 200, rotation: 0, scale: 1, color: [1, 0, 1, 0.5], bufferInfo: bufferRing, bufferWire: bufferRingWire, hasCurve: false },
-      { x: 230, y: 230, rotation: 0, scale: 1, color: [0, 0, 1, 0.5], bufferInfo: bufferRing, bufferWire: bufferRingWire, hasCurve: false },
-      { x: 100, y: 20, rotation: 0, scale: 1, color: [0, 0, 1, 1], bufferInfo: bufferTess, bufferWire: bufferTessWire, hasCurve: false },
-      { x: 300, y: 20, rotation: 0, scale: 1, color: [1, 0, 0, 1], bufferInfo: bufferCurve, hasCurve: true },
+      { x: -500, y: -200, rotation: 0, scale: 1, color: [1, 0, 1, 0.5], bufferInfo: bufferRing, bufferWire: bufferRingWire, hasCurve: false },
+      { x: -500 + 30, y: -200 + 30, rotation: 0, scale: 1, color: [0, 0, 1, 0.5], bufferInfo: bufferRing, bufferWire: bufferRingWire, hasCurve: false },
+      { x: -500, y: 0, rotation: 0, scale: 1, color: [0, 0, 1, 1], bufferInfo: bufferTess, bufferWire: bufferTessWire, hasCurve: false },
+      { x: 300, y: 0, rotation: 0, scale: 1, color: [1, 0, 0, 1], bufferInfo: bufferCurve, hasCurve: true },
     );
 
     let viewProjectionMat;

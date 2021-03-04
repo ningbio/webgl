@@ -959,11 +959,11 @@ void main() {
           curPt = [segment[1], segment[2]];
         }
         else if (verb === 'H') {
-          curPt = [curPt[0] + segment[1], curPt[1]];
+          curPt = [segment[1], curPt[1]];
           curPoly.push(...curPt);
           // empty for now
         } else if (verb === 'V') {
-          curPt = [curPt[0], curPt[1] + segment[1]];
+          curPt = [curPt[0], segment[1]];
           curPoly.push(...curPt);
           // empty for now
         } else if (verb === 'L') {
