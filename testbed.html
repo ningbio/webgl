@@ -27,6 +27,7 @@
   <!-- <script src="gl-matrix-min.js"></script> -->
   <script src="tessellate.js"></script>
   <script src="/node_modules/pathkit-wasm/bin/pathkit.js"></script>
+  <script src="/node_modules/svg-path-reverse/reverse.js"></script>
   <script src="svgpath-all.js"></script>
   <script src="cubic2quad.js"></script>
   <!-- <script src="/node_modules/svgpath/lib/svgpath.js"></script> -->
@@ -597,9 +598,13 @@ void main() {
     };
 
     // add some simple shapes
-    const testCubic = shapeFromSvgString('M0,50L50,50C75,50,100,75,100,100C75,100,50,125,50,150z');
+    const testCubic = shapeFromSvgString('M0,50L50,50C75,50,100,75,100,100C75,100,50,125,50,150z'); // original path
+    const strokeString = 'M0 0L50 100C50 95.507 50.8075 91.014 52.2773 86.6661C58.986 66.8215 79.493 50 100 50C100 47.3256 99.7139 44.6512 99.1723 42.0075C94.6512 19.9373 72.3256 0 50 0H0ZM12.9443 8L47.5492 77.21C50.6921 70.81 54.9897 64.9466 59.9681 59.9681C68.3948 51.5415 79.3566 45.0655 91.1649 42.8382C89.4153 35.1888 85.0006 27.5643 78.7181 21.2819C70.4659 13.0296 59.8981 8 50 8H12.9443Z';
+    var reversedStrokeString = SVGPathEditor.reverse(strokeString, 0); // have to reverse, winding is not correct.
+    const testCubicStroke = shapeFromSvgString(reversedStrokeString); // stroked path (5)
     addShape(50, 0, 1, [0, 0, 1, 1], testCubic, false);
     addShape(150, 0, 1, [0, 0, 1, 0.5], testCubic, false);
+    addShape(250, 50, 1, [0, 0, 1, 1], testCubicStroke, false);
 
 
     addShape(-500, 100, 0.3, [0.6, 0.25, 0.25, 1], shapeFromSvgString(SvgPath('M202 58C202 88.9279 156.781 114 101 114C45.2192 114 0 88.9279 0 58C0 27.0721 45.2192 0.5 101 0.5C156.781 0.5 202 27.0721 202 58Z').unarc().toString()), false); // oval
@@ -617,7 +622,7 @@ void main() {
       { x: -500, y: -200, rotation: 0, scale: 1, color: [1, 0, 1, 0.5], bufferInfo: bufferRing, bufferWire: bufferRingWire, hasCurve: false },
       { x: -500 + 30, y: -200 + 30, rotation: 0, scale: 1, color: [0, 0, 1, 0.5], bufferInfo: bufferRing, bufferWire: bufferRingWire, hasCurve: false },
       { x: -500, y: 0, rotation: 0, scale: 1, color: [0, 0, 1, 1], bufferInfo: bufferTess, bufferWire: bufferTessWire, hasCurve: false },
-      { x: 300, y: 0, rotation: 0, scale: 1, color: [1, 0, 0, 1], bufferInfo: bufferCurve, hasCurve: true },
+      { x: 400, y: 0, rotation: 0, scale: 1, color: [1, 0, 0, 1], bufferInfo: bufferCurve, hasCurve: true },
     );
 
     let viewProjectionMat;
