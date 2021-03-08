@@ -33,19 +33,12 @@
       var canvas = new fabric.Canvas('canvas');
       canvas.skipOffscreen = false;
 
-      // canvas.add(new fabric.Rect({ width: 50, height: 50, fill: 'blue', angle: 10 }))
-      // canvas.add(new fabric.Circle({ radius: 50, fill: 'red', top: 44, left: 80 }))
-      // canvas.add(new fabric.Ellipse({ rx: 50, ry: 10, fill: 'yellow', top: 80, left: 35 }))
-      // canvas.add(new fabric.Rect({ width: 50, height: 50, fill: 'purple', angle: -19, top: 70, left: 70 }))
-      // canvas.add(new fabric.Circle({ radius: 50, fill: 'green', top: 110, left: 30 }))
-      // canvas.add(new fabric.Ellipse({ rx: 50, ry: 10, fill: 'orange', top: 12, left: 100, angle: 30 }))
-
       // add text
-      var text = 'Hello world Path Rendering! Lorem ipsum dolor sit amet,nconsectetur adipisicing elit, sed do eiusmod tempor incididuntnut labore et dolore magna aliqua Ut enim ad minim veniam,nquis nostrud exercitation ullamconlaboris nisi ut aliquip ex ea commodo consequat.';
-      for (let i = 0; i < 4; i++) {
-        const s = text.slice(0, text.length);
-        text = text.concat(s);
-      }
+      // var text = 'Hello world Path Rendering! Lorem ipsum dolor sit amet,nconsectetur adipisicing elit, sed do eiusmod tempor incididuntnut labore et dolore magna aliqua Ut enim ad minim veniam,nquis nostrud exercitation ullamconlaboris nisi ut aliquip ex ea commodo consequat.';
+      // for (let i = 0; i < 4; i++) {
+      //   const s = text.slice(0, text.length);
+      //   text = text.concat(s);
+      // }
 
       // var textSample = new fabric.Text(text.slice(0, text.length), {
       //   left: 300,
@@ -64,15 +57,15 @@
       // canvas.add(textSample);
 
 
-
       fabric.loadSVGFromURL('dragon.svg', function (objects, options) {
+        // fabric.loadSVGFromURL('lady.svg', function (objects, options) {
         var obj = fabric.util.groupSVGElements(objects, options);
         // obj.set(selectable, false);
         obj.set('hasControls', false);
 
         // load shapes
-        for (var i = 1; i < 60; i++) {
-          for (var j = 1; j < 40; j++) {
+        for (var i = 1; i < 2; i++) {
+          for (var j = 1; j < 2; j++) {
             obj.clone(function (i, j) {
               return function (clone) {
                 clone.set({
