@@ -1,0 +1,26 @@
+{
+  "name": "pathrender",
+  "version": "1.0.0",
+  "description": "testbed for path rendering",
+  "main": "\t",
+  "dependencies": {
+    "fontkit": "^1.8.1",
+    "pathkit-wasm": "^0.7.0",
+    "svg-path-reverse": "^1.2.1",
+    "svgpath": "^2.3.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ningbio/webgl.git"
+  },
+  "author": "Ning",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ningbio/webgl/issues"
+  },
+  "homepage": "https://github.com/ningbio/webgl#readme"
+}
