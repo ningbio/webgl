@@ -32,6 +32,9 @@
   <script src="cubic2quad.js"></script>
   <!-- <script src="/node_modules/svgpath/lib/svgpath.js"></script> -->
   <script type="text/javascript" src="fontkit.js"></script>
+  <script src="/node_modules/libtess/libtess.min.js"></script>
+  <script src="triangulate.js"></script>
+
   <script type="text/javascript">
     'use strict';
     // const { mat2, mat3, mat4, vec2, vec3, vec4 } = glMatrix;
@@ -490,8 +493,8 @@ void main() {
     // shape F
     var poly = [
       [
-        0, 0, // 0----1
-        40, 0, // |    |
+        0, 0,   // 0----1
+        40, 0,  // |    |
         40, 10, // | 3--2
         10, 10, // | |
         10, 20, // | 4-5

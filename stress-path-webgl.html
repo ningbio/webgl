@@ -1048,6 +1048,8 @@ void main() {
     // create buffer and add the shape to scene
     function addShape(x, y, scale, color, shapeInfo, yInverted) {
       // create buffer for innerPoly 
+      console.log(shapeInfo.polyContours);
+      // const tessellatedPoly = triangulate(shapeInfo.polyContours);
       const tessellatedPoly = tessellate(shapeInfo.polyContours);
       const polyBuffer = twgl.createBufferInfoFromArrays(gl, {
         a_position: {
@@ -1505,7 +1507,7 @@ void main() {
     }, false);
 
 
-    draw();        
+    draw();
   </script>
 </body>
 

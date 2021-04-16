@@ -5,6 +5,7 @@
   "main": "\t",
   "dependencies": {
     "fontkit": "^1.8.1",
+    "libtess": "^1.2.2",
     "pathkit-wasm": "^0.7.0",
     "svg-path-reverse": "^1.2.1",
     "svgpath": "^2.3.1"
