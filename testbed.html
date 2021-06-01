@@ -241,6 +241,10 @@ void main() {
   // gl_FragColor = vec4(v_texcoord, 1, 1);
   // gl_FragColor = vewc4(vec2(v_winding, v_winding) - v_texcoord, 1, 1);
 
+  if (abs(v_winding) < 0.0001) {
+    outColor = u_color;
+  } else {
+
   float u = v_texcoord.x;
   float v = v_texcoord.y;
   float val = (u * u - v) * v_winding;
@@ -261,7 +265,9 @@ void main() {
   // outColor = vec4(alpha, 0, 0, 1); // to debug alpha
 
   float clampedAlpha = clamp(alpha, 0.0, 1.0);  
-  outColor = vec4(u_color.rgb, clampedAlpha);
+  // outColor = vec4(u_color.rgb, clampedAlpha);
+  outColor = vec4(vec3(1,0,0), clampedAlpha);
+  }
 }
 `;
 
@@ -270,6 +276,11 @@ void main() {
       const v2 = [p2[0] - p1[0], p2[1] - p1[1]];
       const winding = (v1[0] * v2[1] - v1[1] * v2[0] < 0.0) ? -1 : 1;
       return winding;
+    }
+
+    // construct geometry by iterating SkPath
+    function shapeFromSkPath(skpath) {
+
     }
 
     // construct shape's (polyline/ears) and add to scene
@@ -405,11 +416,30 @@ void main() {
     function addShape(x, y, scale, color, shapeInfo, yInverted) {
       // create buffer for innerPoly 
       const tessellatedPoly = tessellate(shapeInfo.polyContours);
+      // fake winding and texcoord just make the shader code uniform to handle internal and ears
+      let fakeWindings = [];
+      let fakeTexcoord = [];
+      for (let i = 0; i < tessellatedPoly.vertices.length / 2; i++) {
+        fakeWindings.push(0.0);
+        fakeTexcoord.push(0.0, 0.0);
+      }
+
       const polyBuffer = twgl.createBufferInfoFromArrays(gl, {
         a_position: {
           numComponents: 2,
           data: Float32Array.from(tessellatedPoly.vertices),
         },
+
+        a_winding: {
+          numComponents: 1,
+          data: fakeWindings,
+        },
+
+        a_texcoord: {
+          numComponents: 2,
+          data: fakeTexcoord,
+        },
+
         indices: Array.from(tessellatedPoly.triangles),
       });
 
@@ -477,7 +507,7 @@ void main() {
     }
 
     // compiles shaders, links program, looks up locations
-    const programInfo1 = twgl.createProgramInfo(gl, [vs, fs]);
+    // const programInfo1 = twgl.createProgramInfo(gl, [vs, fs]);
     const programInfo2 = twgl.createProgramInfo(gl, [loopvs_gl2, loopfs_gl2]);
 
     // tessellator, a contour is a flattened point-list, and a polygon is a multi-contour
@@ -693,20 +723,9 @@ void main() {
 
       updateViewProjection();
 
-      // // draw inner polygons in the scene with plane shader
-      gl.useProgram(programInfo1.program);
-      for (let i = 0; i < scene.length; i++) {
-        if (!scene[i].hasCurve) {
-          drawThing(scene[i], programInfo1);
-        }
-      }
-
-      // draw all ears in scene with shader 2
       gl.useProgram(programInfo2.program);
       for (let i = 0; i < scene.length; i++) {
-        if (scene[i].hasCurve) {
-          drawThing(scene[i], programInfo2);
-        }
+        drawThing(scene[i], programInfo2);
       }
 
       // if (rotate) {
