@@ -158,10 +158,46 @@
     var devicePixelRatio = window.devicePixelRatio || 1;
     canvas.width = desiredWidthInCSSPixels * devicePixelRatio;
     canvas.height = desiredHeightInCSSPixels * devicePixelRatio;
+
+    console.log('canvas size:' + canvas.width + ',' + canvas.height);
     const gl = canvas.getContext('webgl2'); // may need to fallback to webgl 1.0
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
+    // create a texture for test
+    var fill_texture = addImageTexture('leaf.jpg');
+    var background_texture = addImageTexture('stone.jpg');
+    function addImageTexture(file) {
+      var newTexture = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, newTexture);
+      // Fill the texture with a 1x1 blue pixel.
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE,
+        new Uint8Array([0, 0, 255, 255]));
+      // Asynchronously load an image
+      var image = new Image();
+      image.src = file;
+      image.addEventListener('load', function () {
+        // Now that the image has loaded make copy it to the texture.
+        gl.bindTexture(gl.TEXTURE_2D, newTexture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+
+        // Check if the image is a power of 2 in both dimensions.
+        if (isPowerOf2(image.width) && isPowerOf2(image.height)) {
+          // Yes, it's a power of 2. Generate mips.
+          gl.generateMipmap(gl.TEXTURE_2D);
+        } else {
+          // No, it's not a power of 2. Turn of mips and set wrapping to clamp to edge
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        }
+      });
+      return newTexture;
+    }
+
+    function isPowerOf2(value) {
+      return (value & (value - 1)) === 0;
+    }
 
     const vs = `
 attribute vec2 a_position;
@@ -218,14 +254,24 @@ void main() {
 #version 300 es
 in vec2 a_position;
 in vec2 a_texcoord;
+in vec2 a_fillTexcoord;
 in float a_winding;
 out vec2 v_texcoord;
+out vec2 v_fillTexcoord;
 out float v_winding;
 uniform mat3 u_matrix;
+out vec2 startPos;
+out vec2 endPos;
 void main() {
   gl_Position = vec4((u_matrix * vec3(a_position, 1)).xy, 0, 1);
   v_texcoord = a_texcoord;
+  v_fillTexcoord = a_fillTexcoord;
   v_winding = a_winding;
+
+  vec4 clipStart= vec4((u_matrix * vec3(0, 0, 1)).xy, 0, 1);
+  startPos = clipStart.xy / clipStart.w;
+  vec4 clipEnd = vec4((u_matrix * vec3(200, 200, 1)).xy, 0, 1);
+  endPos = clipEnd.xy / clipEnd.w;
 }
 `;
 
@@ -234,12 +280,37 @@ void main() {
 precision highp float;
 uniform vec4 u_color;
 in vec2 v_texcoord;
+in vec2 v_fillTexcoord;
 in float v_winding;
 out vec4 outColor;
+uniform mat3 u_matrix;
+in vec2 startPos;
+in vec2 endPos;
+uniform sampler2D u_fillSampler;
+uniform sampler2D u_backgroundSampler;
 void main() {
-  // gl_FragColor = u_color;
-  // gl_FragColor = vec4(v_texcoord, 1, 1);
-  // gl_FragColor = vewc4(vec2(v_winding, v_winding) - v_texcoord, 1, 1);
+  // texture query
+  // outColor = texture(u_fillSampler, v_texcoord);
+  vec4 texColor = texture(u_backgroundSampler, v_fillTexcoord);
+  outColor = texColor;
+  return;
+
+  // gradient
+  // todo: resolution will be uniform
+  vec2 res = vec2(1080.0, 720.0);
+  vec2 uv = gl_FragCoord.xy / res.xy;
+  vec2 cc = (uv * 2.0 - 1.0);// gl_FragCoord.w;
+  float d0 = distance(cc, startPos);
+  float d1 = distance(cc, endPos); 
+  float t = d0 / (d0+d1);
+
+  // todo: colors should be set through uniform
+  vec4 startColor = vec4(1.0, 0.0, 0.0, 1.0);
+  vec4 endColor = vec4(0.0, 0.0, 1.0, 1.0);
+
+  vec4 fillColor = mix(startColor, endColor, smoothstep(0.0, 1.0, t));
+  outColor = fillColor;
+  return;
 
   if (abs(v_winding) < 0.0001) {
     outColor = u_color;
@@ -419,9 +490,33 @@ void main() {
       // fake winding and texcoord just make the shader code uniform to handle internal and ears
       let fakeWindings = [];
       let fakeTexcoord = [];
+      let fillTexCoord = [];
+
+      // compute bounds
+      let bounds = {
+        minX: 1e9,
+        maxX: -1e9,
+        minY: 1e9,
+        maxY: -1e9,
+      };
+
+      for (let i = 0; i < tessellatedPoly.vertices.length / 2; i++) {
+        const x = tessellatedPoly.vertices[2 * i + 0];
+        const y = tessellatedPoly.vertices[2 * i + 1];
+        bounds.minX = Math.min(bounds.minX, x);
+        bounds.maxX = Math.max(bounds.maxX, x);
+        bounds.minY = Math.min(bounds.minY, y);
+        bounds.maxY = Math.max(bounds.maxY, y);
+      }
+      const extX = bounds.maxX - bounds.minX;
+      const extY = bounds.maxY - bounds.minY;
+
       for (let i = 0; i < tessellatedPoly.vertices.length / 2; i++) {
         fakeWindings.push(0.0);
         fakeTexcoord.push(0.0, 0.0);
+        const x = (tessellatedPoly.vertices[2 * i + 0] - bounds.minX) / extX;
+        const y = (tessellatedPoly.vertices[2 * i + 1] - bounds.minY) / extY;
+        fillTexCoord.push(x, y);
       }
 
       const polyBuffer = twgl.createBufferInfoFromArrays(gl, {
@@ -435,9 +530,16 @@ void main() {
           data: fakeWindings,
         },
 
+        // texture coord for curve rendering
         a_texcoord: {
           numComponents: 2,
           data: fakeTexcoord,
+        },
+
+        // real texture coord
+        a_fillTexcoord: {
+          numComponents: 2,
+          data: fillTexCoord,
         },
 
         indices: Array.from(tessellatedPoly.triangles),
@@ -711,6 +813,8 @@ void main() {
       twgl.setUniforms(programInfo, {
         u_matrix: m3.multiply(viewProjectionMat, mat),
         u_color: color,
+        u_fillSampler: fill_texture,
+        u_backgroundSampler: background_texture,
       });
 
       // calls gl.drawArrays or gl.drawElements
