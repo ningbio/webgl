@@ -40,7 +40,14 @@
     // const { mat2, mat3, mat4, vec2, vec3, vec4 } = glMatrix;
     const eps = 0.5;
     const scene = [];
-    const FillType = { "SOLID": 0, "GRADIENT": 1, "IMAGE": 2, "CUSTOME": 3 };
+    const FillType = {
+      "SOLID": 0,
+      "GRADIENT": 1,
+      "IMAGE": 2,
+      "ADVANCED_IMAGE": 3,
+      "CUSTOME": 4,
+      "NONE": 5
+    };
     // const quads = cubicToQuad(50, 50, 75, 50, 100, 75, 100, 100, eps);
     // console.log(quads);
 
@@ -293,9 +300,9 @@ void main() {
     void main() {
       // texture color
       // outColor = texture(u_fillSampler, v_texcoord);
-      vec4 texColor = texture(u_backgroundSampler, v_fillTexcoord);
-      // outColor = texColor;
-      // return;
+      vec4 texColor = texture(u_fillSampler, v_fillTexcoord);
+      vec4 backgroundColor = texture(u_backgroundSampler, v_fillTexcoord);
+      float gray = 0.2989* backgroundColor.r + 0.5870*backgroundColor.g + 0.1140*backgroundColor.b;
     
       // gradient color
       // todo: resolution will be uniform
@@ -306,38 +313,59 @@ void main() {
       float d1 = distance(cc, endPos);
       float t = d0 / (d0+d1);
       // todo: colors should be set through uniform
-      vec4 startColor = vec4(1.0, 0.0, 0.0, 1.0);
-      vec4 endColor = vec4(0.0, 0.0, 1.0, 1.0);
+      vec4 startColor = vec4(1.0, 0.0, 0.0, u_color.a);
+      vec4 endColor = vec4(0.0, 0.0, 1.0, u_color.a);
       vec4 fillColor = mix(startColor, endColor, smoothstep(0.0, 1.0, t));
-      // outColor = fillColor;
-      // return;
     
+      float clampedAlpha = 1.0;
       if (abs(v_winding) < 0.0001) {
-        outColor = u_color;
+        // internal polygons
+        // outColor = u_color;
       } else {
-    
-      float u = v_texcoord.x;
-      float v = v_texcoord.y;
-      float val = (u * u - v) * v_winding;
+        // ear triangles
+        float u = v_texcoord.x;
+        float v = v_texcoord.y;
+        float val = (u * u - v) * v_winding;
+        
+        // float ddx = dFdx(val);
+        // float ddy = dFdy(val);
+        // float scale = sqrt(ddx * ddx + ddy * ddy);
+        float scale = fwidth(val);
+        float sd = val / scale;
+        float alpha = 0.5 - sd;
+        
+        // no AA version
+        //  if (val < 0.0) discard;
+        // outColor = u_color;
+        // outColor = vec4(u, v, 1, 1);
+        // outColor = vec4(0, 0, 1, alpha);
+        // outColor = vec4(alpha, 0, 0, 1); // to debug alpha
       
-      // float ddx = dFdx(val);
-      // float ddy = dFdy(val);
-      // float scale = sqrt(ddx * ddx + ddy * ddy);
-      float scale = fwidth(val);
-      float sd = val / scale;
-      float alpha = 0.5 - sd;
-      
-      // no AA version
-      //  if (val < 0.0) discard;
-      // outColor = u_color;
-      // outColor = vec4(u, v, 1, 1);
-      // outColor = vec4(0, 0, 1, alpha);
-      // outColor = vec4(alpha, 0, 0, 1); // to debug alpha
-    
-      float clampedAlpha = clamp(alpha, 0.0, 1.0);  
-      outColor = vec4(u_color.rgb, clampedAlpha);
-      // outColor = vec4(vec3(1,0,0), clampedAlpha);
+        // the alpha used to feather curved edges, todo: we need for polyline as well
+        clampedAlpha = clamp(alpha, 0.0, 1.0);
       }
+
+      // assembly the color
+        if (u_fillType == 0) {
+          // solid fill
+          outColor = vec4(u_color.rgb, clampedAlpha * u_color.a);
+        } else if (u_fillType == 1) {
+          // gradient fill
+          outColor = vec4(fillColor.rgb, clampedAlpha * fillColor.a);
+        } else if (u_fillType == 2) {
+          // image fill
+          outColor = vec4(texColor.rgb, clampedAlpha * texColor.a);
+        } else if (u_fillType == 3) {
+          // advanced image fill 
+          vec3 comp = mix(u_color.rgb,backgroundColor.rgb, 0.4);
+          outColor = vec4(comp, clampedAlpha * u_color.a);
+        } else if (u_fillType == 4) {
+          // todo: custom fill
+          outColor = vec4(vec3(1,0,0), clampedAlpha);
+        } else {
+          // no fill
+          discard;
+        }
     }
     `;
 
@@ -591,12 +619,11 @@ void main() {
           numComponents: 2,
           data: uv,
         },
-        // real texture coord
+        // image fill coord
         a_fillTexcoord: {
           numComponents: 2,
           data: fillTexCoord,
         },
-
         a_winding: {
           numComponents: 1,
           data: windings,
@@ -746,10 +773,10 @@ void main() {
     });
 
     const camera = {
-      x: 0,
-      y: 0,
+      x: -135,
+      y: -111,
       rotation: 0,
-      zoom: 1,
+      zoom: 1.64,
     };
 
     // add some simple shapes
@@ -757,9 +784,17 @@ void main() {
     const strokeString = 'M0 0L50 100C50 95.507 50.8075 91.014 52.2773 86.6661C58.986 66.8215 79.493 50 100 50C100 47.3256 99.7139 44.6512 99.1723 42.0075C94.6512 19.9373 72.3256 0 50 0H0ZM12.9443 8L47.5492 77.21C50.6921 70.81 54.9897 64.9466 59.9681 59.9681C68.3948 51.5415 79.3566 45.0655 91.1649 42.8382C89.4153 35.1888 85.0006 27.5643 78.7181 21.2819C70.4659 13.0296 59.8981 8 50 8H12.9443Z';
     var reversedStrokeString = SVGPathEditor.reverse(strokeString, 0); // have to reverse, winding is not correct.
     const testCubicStroke = shapeFromSvgString(reversedStrokeString); // stroked path (5)
-    addShape(50, 0, 1, [0, 0, 1, 1], testCubic, false, FillType.GRADIENT);
-    addShape(150, 0, 1, [0, 0, 1, 0.5], testCubic, false);
-    addShape(250, 50, 1, [0, 0, 1, 1], testCubicStroke, false);
+    addShape(-50, 0, 1, [1, 0, 0, 0.5], testCubic, false, FillType.SOLID);
+    addShape(50, 0, 1, [1, 0, 0, 0.5], testCubic, false, FillType.ADVANCED_IMAGE);
+    addShape(150, 0, 1, [0, 0, 1, 0.9], testCubic, false, FillType.GRADIENT);
+    addShape(250, 0, 1, [0, 0, 1, 0.5], testCubic, false, FillType.IMAGE);
+    addShape(350, 50, 1, [0, 0, 1, 1], testCubicStroke, false);
+
+    const blob = shapeFromSvgString("M -60.48,12.9 C -70.783,-24.08,-114.688,-53.32,-112,-77.4 C -109.312,-101.48,-77.0,-108.79,-47.0-107.5 C -17.024,-106.21,13.4,-94.6,38.0,-70.94 C 62.7,-47.2,77.056,-22.7,76.16,10.75 C 75.264,44.2,60.928,77.4,33.5,96.75 C 6.2,116.1,-41.664,124.27,-60.48,107.5 C -79.2,90.73,-50.1,49.8,-60.48,12.9 Z");
+    addShape(0, 220, .5, [1, 0, 0, 0.5], blob, false, FillType.SOLID);
+    addShape(120, 220, .5, [1, 0, 0, 0.5], blob, false, FillType.ADVANCED_IMAGE);
+    addShape(240, 220, .5, [0, 0, 1, 0.9], blob, false, FillType.GRADIENT);
+    addShape(360, 220, .5, [0, 0, 1, 0.5], blob, false, FillType.IMAGE);
 
 
     addShape(-500, 100, 0.3, [0.6, 0.25, 0.25, 1], shapeFromSvgString(SvgPath('M202 58C202 88.9279 156.781 114 101 114C45.2192 114 0 88.9279 0 58C0 27.0721 45.2192 0.5 101 0.5C156.781 0.5 202 27.0721 202 58Z').unarc().toString()), false); // oval
@@ -774,10 +809,10 @@ void main() {
     // contains the different shapes, each shape has polylines and ears.
     scene.push(
       // { x: 20, y: 20, rotation: 0, scale: 1, color: [1, 0, 0, 1], bufferInfo: bufferInfo },
-      { x: -500, y: -200, rotation: 0, scale: 1, color: [1, 0, 1, 0.5], bufferInfo: bufferRing, bufferWire: bufferRingWire, hasCurve: false },
-      { x: -500 + 30, y: -200 + 30, rotation: 0, scale: 1, color: [0, 0, 1, 0.5], bufferInfo: bufferRing, bufferWire: bufferRingWire, hasCurve: false },
-      { x: -500, y: 0, rotation: 0, scale: 1, color: [0, 0, 1, 1], bufferInfo: bufferTess, bufferWire: bufferTessWire, hasCurve: false },
-      { x: 400, y: 0, rotation: 0, scale: 1, color: [1, 0, 0, 1], bufferInfo: bufferCurve, hasCurve: true },
+      // { x: -500, y: -200, rotation: 0, scale: 1, color: [1, 0, 1, 0.5], bufferInfo: bufferRing, bufferWire: bufferRingWire, hasCurve: false },
+      // { x: -500 + 30, y: -200 + 30, rotation: 0, scale: 1, color: [0, 0, 1, 0.5], bufferInfo: bufferRing, bufferWire: bufferRingWire, hasCurve: false },
+      // { x: -500, y: 0, rotation: 0, scale: 1, color: [0, 0, 1, 1], bufferInfo: bufferTess, bufferWire: bufferTessWire, hasCurve: false },
+      // { x: 400, y: 0, rotation: 0, scale: 1, color: [1, 0, 0, 1], bufferInfo: bufferCurve, hasCurve: true },
     );
 
     let viewProjectionMat;
@@ -919,6 +954,7 @@ void main() {
     }
 
     function handleMouseUp(e) {
+      console.log(camera);
       rotate = false;
       draw();
       window.removeEventListener('mousemove', handleMouseMove);
