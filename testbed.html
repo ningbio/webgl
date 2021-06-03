@@ -306,7 +306,7 @@ void main() {
     
       // gradient color
       // todo: resolution will be uniform
-      vec2 res = vec2(1080.0, 720.0);
+      vec2 res = vec2(2160,1440);
       vec2 uv = gl_FragCoord.xy / res.xy;
       vec2 cc = (uv * 2.0 - 1.0);// gl_FragCoord.w;
       float d0 = distance(cc, startPos);
