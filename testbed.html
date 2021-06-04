@@ -202,7 +202,6 @@
       const testReversed = SVGPathEditor.reverse(testStroke, 0);
       addShape(350, 0, 1, [0, 0, 1, 0.6], shapeFromSvgString(testReversed), false, FillType.SOLID); // stroke with fill
 
-
       // blob border
       const blobString = "M -60.48,12.9 C -70.783,-24.08,-114.688,-53.32,-112,-77.4 C -109.312,-101.48,-77.0,-108.79,-47.0-107.5 C -17.024,-106.21,13.4,-94.6,38.0,-70.94 C 62.7,-47.2,77.056,-22.7,76.16,10.75 C 75.264,44.2,60.928,77.4,33.5,96.75 C 6.2,116.1,-41.664,124.27,-60.48,107.5 C -79.2,90.73,-50.1,49.8,-60.48,12.9 Z";
       addShape(480, 220, .5, [0, 0, 1, 0.5], shapeFromSvgString(blobString), false, FillType.IMAGE);// fill 
@@ -210,8 +209,23 @@
       const reversed = SVGPathEditor.reverse(blobStrokeStr);
       addShape(480, 220, .5, [1, 0, 0, 1], shapeFromSvgString(reversed), false, FillType.SOLID); // stroke with fill
 
+      // boolean simple shapes      
+      const path1 = PathKit.FromSVGString(testString);
+      const path2 = PathKit.NewPath().rect(30, 70, 100, 100);
 
+      // two separate shapes
+      addShape(-50, 400, 1, [0, 0, 1, 0.8], shapeFromSvgString(testString), false, FillType.SOLID);
+      addShape(-50, 400, 1, [1, 0, 1, 0.4], shapeFromSvgString(path2.toSVGString()), false, FillType.SOLID);
 
+      // boolean intersect
+      const interPath = PathKit.MakeFromOp(path1, path2, PathKit.PathOp.INTERSECT);
+      addShape(150, 400, 1, [1, 0, 1, 0.4], shapeFromSvgString(interPath.toSVGString()), false, FillType.SOLID);
+
+      // boolean union
+      const unionPath = PathKit.MakeFromOp(path1, path2, PathKit.PathOp.UNION);
+      const unionPathStr = unionPath.toSVGString();
+      const rev = SVGPathEditor.reverse(unionPathStr, 0); // have to reverse??
+      addShape(300, 400, 1, [1, 0, 1, 0.4], shapeFromSvgString(rev), false, FillType.SOLID);
 
     });
 
