@@ -256,8 +256,9 @@
         const pathStr = 'M0,0L25,100';
         const stroked = calcStrokePath(pathStr, 20, PathKit.StrokeJoin.MITER, PathKit.StrokeCap.ROUND);
         const stroked1 = calcStrokePath(stroked, 2, PathKit.StrokeJoin.MITER, PathKit.StrokeCap.ROUND, [5, 5, 1]);
+        const rev1 = SVGPathEditor.reverse(stroked1); // have to reverse??
         addShape(300, 600, 1, [0.75, 0.88, 0.88, 1], shapeFromSvgString(stroked), false, FillType.SOLID); // fill
-        addShape(300, 600, 1, [0, 0, 0, .9], shapeFromSvgString(stroked1), false, FillType.SOLID); // stroke
+        addShape(300, 600, 1, [0, 0, 0, .9], shapeFromSvgString(rev1), false, FillType.SOLID); // stroke
       }
 
 
