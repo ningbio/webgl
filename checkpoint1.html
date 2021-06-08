@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html>
+
+<body>
+    <style type="text/css">
+        body {
+            background-color: rgb(255, 255, 255);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            min-width: 100vw;
+            min-height: 100vh;
+        }
+
+        canvas {
+            border: 1px solid black;
+        }
+    </style>
+
+    <canvas id="canvas" width="1080" height="720"></canvas>
+
+    <!-- <script src="webgl.js"></script> -->
+    <script src="resources/twgl/4.x/twgl-full.min.js"></script>
+    <!-- <script src="resources/twgl/4.x/twgl-full.js"></script> -->
+    <script src="resources/m3.js"></script>
+    <!-- <script src="gl-matrix-min.js"></script> -->
+    <script src="tessellate.js"></script>
+    <script src="/node_modules/pathkit-wasm/bin/pathkit.js"></script>
+    <script src="/node_modules/svg-path-reverse/reverse.js"></script>
+    <script src="svgpath-all.js"></script>
+    <script src="cubic2quad.js"></script>
+    <!-- <script src="/node_modules/svgpath/lib/svgpath.js"></script> -->
+    <script type="text/javascript" src="fontkit.js"></script>
+    <script src="/node_modules/libtess/libtess.min.js"></script>
+    <script src="triangulate.js"></script>
+
+    <script type="text/javascript">
+        'use strict';
+        // const { mat2, mat3, mat4, vec2, vec3, vec4 } = glMatrix;
+        const eps = 0.5;
+        const scene = [];
+        // const quads = cubicToQuad(50, 50, 75, 50, 100, 75, 100, 100, eps);
+        // console.log(quads);
+
+        // convert svg to quad-only segments
+        var transformed = SvgPath('M50,50C75,50,100,75,100,100C75,100,50,125,50,150H111V222L0,0z')
+            .unarc();
+        const path1 = transformed.iterate((segment, index, x, y) => {
+            // console.log(segment); 
+        });
+
+
+        window.onload = (event) => {
+            // console.log('page is fully loaded');
+        };
+
+        function loadFont(font, path, x, y, scale, str, isInvertedFont) {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', path, true);
+            xhr.responseType = 'arraybuffer';
+
+            xhr.onload = function (e) {
+                if (this.status == 200) {
+                    var fkBlob = this.response;
+                    var fkBuffer = new Buffer(fkBlob);
+                    font = fontkit.create(fkBuffer);
+
+                    addGlyphRun(font, x, y, scale, str, isInvertedFont);
+                    draw();
+                }
+            }
+            xhr.send();
+        }
+
+        function addGlyphRun(font, startX, startY, scale, str, isInvertedFont) {
+            if (!font) return;
+            let run = font.layout(str);
+            let x = startX, y = startY;
+            run.glyphs.forEach((glyph, index) => {
+                const pos = run.positions[index];
+                const glyphString = run.glyphs[index].path.toSVG();
+                if (glyphString.length > 0) {
+                    // swtich to y coordinate
+                    const inverted = SvgPath(glyphString).scale(1, -1).toString();
+                    let si = null;
+                    if (!isInvertedFont) {
+                        si = shapeFromSvgString(inverted);
+                    } else {
+                        si = shapeFromSvgString(glyphString);
+                    }
+
+                    addShape(x + pos.xOffset * scale, y + pos.yOffset * scale, scale, [0, 0, 0, 1], si, isInvertedFont);
+                }
+                x += pos.xAdvance * scale;
+                y += pos.yAdvance * scale;
+            });
+        }
+
+        // font family (typeface), otf font has inverted winding
+        let font1 = null, font2 = null, font3 = null, font4 = null;
+        const yOff = 300;
+        const testString = 'Hello world Path rendering!';
+        loadFont(font1, 'Roboto-Regular.ttf', 200, 500 + yOff, 0.05, testString, false);
+        loadFont(font2, 'Roboto-Italic.ttf', 200, 700 + yOff, 0.05, testString);
+        loadFont(font3, 'Roboto-Medium.ttf', 200, 900 + yOff, 0.05, testString);
+        loadFont(font4, 'Roboto-MediumItalic.ttf', 200, 1100 + yOff, 0.05, testString);
+
+
+        console.log('\u4F60\u597D\u66F2\u7EBF\u6E32\u67D3'); // 你好曲线渲染
+        console.log('\u3053\u3093\u306B\u3061\u306F\u30D1\u30B9\u30EC\u30F3\u30C0\u30EA\u30F3\u30B0'); // 你好曲线渲染
+
+        let fontCh = null;
+        loadFont(fontCh, 'NotoSansSC-Regular.otf', 200, 1300 + yOff, 0.1, '\u4F60\u597D\u66F2\u7EBF\u6E32\u67D3', true);
+
+        let fontCJK = null;
+        loadFont(fontCJK, 'NotoSansCJKjp-Regular.otf', 200, 1500 + yOff, 0.1, '\u3053\u3093\u306B\u3061\u306F\u30D1\u30B9\u30EC\u30F3\u30C0\u30EA\u30F3\u30B0', true);
+
+
+
+
+
+        let showWireframe = false;
+        const MIN_ZOOM = 0.01;
+        const MAX_ZOOM = 4000;
+
+        // load pathkit first, to handle geometry
+        PathKitInit({
+            locateFile: (file) => '/node_modules/pathkit-wasm/bin/' + file,
+        }).then((PathKit) => {
+            // Code goes here using PathKit
+            console.log('initialized pathkit');
+            window.PathKit = PathKit;
+
+            const path = PathKit.FromSVGString(
+                'M44.4,20.8c1.5,1.6,13,15.7,13,15.7s-6.4,6.1-6.4,12.5c0,7.5,8.6,14.3,8.6,14.3l-0.9,1.1c-3.3-1.9-8.9-2.1-11.4,0.8c-3.1,3.6,3.9,9.1,3.9,9.1l-0.8,1.1c-2.4-1.8-12.6-11.4-8.3-16.1c2.6-2.9,5.8-3.8,10.3-1.4l-12.1-12.5c7-8.6,8.2-11.1,8.2-13.4c0-4.8-3.4-8.2-5.1-10.4c-0.6-0.9-1.7-1.6-1-2.2C43.1,18.9,43.5,19.7,44.4,20.8z');
+            const bb = path.computeTightBounds();
+            console.log(bb);
+            // console.log(path);
+
+            const box = PathKit.NewPath().rect(0, 0, 100, 100);
+            // box.dash(20, 10, 3);
+            const boxCmd = box.toCmds();
+            console.log(boxCmd);
+            // Stroke the path with width 10 and rounded corners
+            let rounded = box.copy().stroke({ width: 10, join: PathKit.StrokeJoin.ROUND });
+            const roundCmd = rounded.toCmds();
+            console.log(roundCmd);
+
+        });
+
+        /* global document, window, twgl, m3 */
+        const canvas = document.querySelector('canvas');
+        const desiredWidthInCSSPixels = canvas.width; // the css pixe size at the top of this file
+        const desiredHeightInCSSPixels = canvas.height;
+        canvas.style.width = desiredWidthInCSSPixels + "px";
+        canvas.style.height = desiredHeightInCSSPixels + "px";
+        var devicePixelRatio = window.devicePixelRatio || 1;
+        canvas.width = desiredWidthInCSSPixels * devicePixelRatio;
+        canvas.height = desiredHeightInCSSPixels * devicePixelRatio;
+        const gl = canvas.getContext('webgl2'); // may need to fallback to webgl 1.0
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+
+        const vs = `
+attribute vec2 a_position;
+uniform mat3 u_matrix;
+void main() {
+  gl_Position = vec4((u_matrix * vec3(a_position, 1)).xy, 0, 1);
+}
+`;
+
+        const fs = `
+precision mediump float;
+uniform vec4 u_color;
+void main() {
+  gl_FragColor = u_color;
+}
+`;
+
+        const loopvs_gl1 = `
+// #version 100 es
+attribute vec2 a_position;
+attribute vec2 a_texcoord;
+attribute float a_winding;
+varying vec2 v_texcoord;
+varying float v_winding;
+uniform mat3 u_matrix;
+void main() {
+  gl_Position = vec4((u_matrix * vec3(a_position, 1)).xy, 0, 1);
+  v_texcoord = a_texcoord;
+  v_winding = a_winding;
+}
+`;
+
+        const loopfs_gl1 = `
+// #version 100 es
+precision mediump float;
+uniform vec4 u_color;
+varying vec2 v_texcoord;
+varying float v_winding;
+void main() {
+  //gl_FragColor = u_color;
+  //  gl_FragColor = vec4(v_texcoord, 1, 1);
+  // gl_FragColor = vec4(vec2(v_winding, v_winding) - v_texcoord, 1, 1);
+
+  float u = v_texcoord.x;
+  float v = v_texcoord.y;
+  float val = (u * u - v) * v_winding;
+  if (val > 0.0) discard;
+
+  gl_FragColor = vec4(u, v, 1, 1);
+}
+`;
+
+        const loopvs_gl2 = `
+#version 300 es
+in vec2 a_position;
+in vec2 a_texcoord;
+in float a_winding;
+out vec2 v_texcoord;
+out float v_winding;
+uniform mat3 u_matrix;
+void main() {
+  gl_Position = vec4((u_matrix * vec3(a_position, 1)).xy, 0, 1);
+  v_texcoord = a_texcoord;
+  v_winding = a_winding;
+}
+`;
+
+        const loopfs_gl2 = `
+#version 300 es
+precision highp float;
+uniform vec4 u_color;
+in vec2 v_texcoord;
+in float v_winding;
+out vec4 outColor;
+void main() {
+  // gl_FragColor = u_color;
+  // gl_FragColor = vec4(v_texcoord, 1, 1);
+  // gl_FragColor = vewc4(vec2(v_winding, v_winding) - v_texcoord, 1, 1);
+
+  if (abs(v_winding) < 0.0001) {
+    outColor = u_color;
+  } else {
+
+  float u = v_texcoord.x;
+  float v = v_texcoord.y;
+  float val = (u * u - v) * v_winding;
+  
+  // float ddx = dFdx(val);
+  // float ddy = dFdy(val);
+  // float scale = sqrt(ddx * ddx + ddy * ddy);
+  float scale = fwidth(val);
+  float sd = val / scale;
+  float alpha = 0.5 - sd;
+  
+  // no AA version
+  //  if (val < 0.0) discard;
+  // outColor = u_color;
+
+  // outColor = vec4(u, v, 1, 1);
+  // outColor = vec4(0, 0, 1, alpha);
+  // outColor = vec4(alpha, 0, 0, 1); // to debug alpha
+
+  float clampedAlpha = clamp(alpha, 0.0, 1.0);  
+  // outColor = vec4(u_color.rgb, clampedAlpha);
+  outColor = vec4(vec3(1,0,0), clampedAlpha);
+  }
+}
+`;
+
+        function calcWinding(p0, p1, p2) {
+            const v1 = [p1[0] - p0[0], p1[1] - p0[1]];
+            const v2 = [p2[0] - p1[0], p2[1] - p1[1]];
+            const winding = (v1[0] * v2[1] - v1[1] * v2[0] < 0.0) ? -1 : 1;
+            return winding;
+        }
+
+        // construct geometry by iterating SkPath
+        function shapeFromSkPath(skpath) {
+
+        }
+
+        // construct shape's (polyline/ears) and add to scene
+        function shapeFromSvgString(svgstr) {
+            // convert arc to Q or C, make sure only C, Q, L, H, V 
+
+            // const inputPath = SvgPath('M0,50L50,50Q100,50,100,100Q50,100,50,150z').unarc();
+            // const inputPath = SvgPath('M0,50L50,50Q100,50,100,100Q50,100,50,150 M25,60L50,60L50,80z').unarc();
+            // const inputPath = SvgPath('M0,50L50,50Q100,50,100,100Q50,100,50,150 M25,60Q50,60,50,80z').unarc();
+            // const inputPath = SvgPath('M0,50L50,50C75,50,100,75,100,100C75,100,50,125,50,150z').unarc();
+            // const inputPath = SvgPath('M0,50H50C75,50,100,75,100,100C75,100,50,125,50,150z').unarc(); // test 'H'
+            const inputPath = SvgPath(svgstr).unarc();
+
+            // output data, may have multiple contour
+            let polyContours = []; // array of point contours
+            let earPoints = []; // all triangles with duplicates [p0, p1, p2, p3, p4, p5...]
+            let quadEars = [];
+
+            let earPtIdx = -1;
+            let curPt = undefined;
+            let curPoly = [];
+            let lastVerb = undefined;
+
+            inputPath.iterate((segment, index, x, y) => {
+                // console.log(segment);
+                const verb = segment[0];
+
+                if (verb === 'M') {
+                    if (curPoly.length >= 6) {
+                        // last countour finishes
+                        polyContours.push(curPoly);
+                        curPoly = [segment[1], segment[2]];
+                    } else {
+                        curPoly.push(segment[1], segment[2]);
+                    }
+
+                    curPt = [segment[1], segment[2]];
+                }
+                else if (verb === 'H') {
+                    curPt = [segment[1], curPt[1]];
+                    curPoly.push(...curPt);
+                    // empty for now
+                } else if (verb === 'V') {
+                    curPt = [curPt[0], segment[1]];
+                    curPoly.push(...curPt);
+                    // empty for now
+                } else if (verb === 'L') {
+                    curPt = [segment[1], segment[2]];
+                    curPoly.push(...curPt);
+                } else if (verb === 'Q') {
+                    // compute this winding
+                    const p0 = curPt, p1 = [segment[1], segment[2]], p2 = [segment[3], segment[4]];
+                    const winding = calcWinding(p0, p1, p2);
+
+                    // update ears
+                    if (lastVerb !== verb) {
+                        earPtIdx++;
+                        earPoints.push(...p0);
+                    }
+                    earPoints.push(...p1, ...p2);
+                    quadEars.push([earPtIdx, earPtIdx + 1, earPtIdx + 2, winding]);
+                    earPtIdx += 2;
+
+                    // update inner
+                    if (winding > 0) {
+                        // control point is outside the cage
+                        curPoly.push(...p2);
+                    } else {
+                        // control point is inside the cage
+                        curPoly.push(...p1, ...p2);
+                    }
+                    curPt = p2;
+                } else if (verb === 'C') {
+                    if (segment.length == 7) {
+                        const quads = cubicToQuad(curPt[0], curPt[1], segment[1], segment[2], segment[3], segment[4], segment[5], segment[6], eps);
+                        const nPoints = quads.length / 2;
+                        const nSeg = (nPoints - 1) / 2;
+                        const cur = [quads[0], quads[1]];
+
+                        const points = [];
+                        for (let i = 0; i < nPoints; i++) {
+                            points.push([quads[2 * i], quads[2 * i + 1]]);
+                        }
+
+                        // loop each segment
+                        for (let i = 0; i < nSeg; i++) {
+                            const p0 = points[2 * i + 0], p1 = points[2 * i + 1], p2 = points[2 * i + 2];
+                            const winding = calcWinding(p0, p1, p2);
+
+                            // update ear data if is continued quad, already pushed
+                            if (i === 0 && lastVerb !== 'Q') {
+                                earPtIdx++;
+                                earPoints.push(...p0);
+                            }
+                            // for ears, just push the cage
+                            earPoints.push(...p1, ...p2);
+                            quadEars.push([earPtIdx, earPtIdx + 1, earPtIdx + 2, winding]);
+                            earPtIdx += 2;
+
+                            // update inner, for polyline, only push the inner control point of an ear
+                            if (winding > 0) {
+                                // control point is outside the cage
+                                curPoly.push(...p2);
+                            } else {
+                                // control point is inside the cage
+                                curPoly.push(...p1, ...p2);
+                            }
+                        } // end of loop
+
+                        curPt = [quads[quads.length - 2], quads[quads.length - 1]];
+                    }
+                } else if (verb === 'z' || verb === 'Z') {
+                    if (curPoly.length >= 6) {
+                        polyContours.push(curPoly);
+                        curPoly = [];
+                        curPt = undefined;
+                    }
+
+                } else {
+                    console.error(`verb not supported: ${verb}`);
+                }
+                lastVerb = verb;
+            });
+
+            return {
+                polyContours: polyContours,
+                earPoints: earPoints,
+                quadEars: quadEars,
+            }
+        }
+
+        // create buffer and add the shape to scene
+        function addShape(x, y, scale, color, shapeInfo, yInverted) {
+            // create buffer for innerPoly 
+            const tessellatedPoly = tessellate(shapeInfo.polyContours);
+            // fake winding and texcoord just make the shader code uniform to handle internal and ears
+            let fakeWindings = [];
+            let fakeTexcoord = [];
+            for (let i = 0; i < tessellatedPoly.vertices.length / 2; i++) {
+                fakeWindings.push(0.0);
+                fakeTexcoord.push(0.0, 0.0);
+            }
+
+            const polyBuffer = twgl.createBufferInfoFromArrays(gl, {
+                a_position: {
+                    numComponents: 2,
+                    data: Float32Array.from(tessellatedPoly.vertices),
+                },
+
+                a_winding: {
+                    numComponents: 1,
+                    data: fakeWindings,
+                },
+
+                a_texcoord: {
+                    numComponents: 2,
+                    data: fakeTexcoord,
+                },
+
+                indices: Array.from(tessellatedPoly.triangles),
+            });
+
+            // extra buffer for wireframe, for debug purpose
+            const polyWireBuffer = twgl.createBufferInfoFromArrays(gl, {
+                a_position: {
+                    numComponents: 2,
+                    data: Float32Array.from(tessellatedPoly.vertices),
+                },
+                indices: Array.from(trianglesTolines(tessellatedPoly.triangles)),
+            });
+
+            // add to scene
+            scene.push({ x: x, y: y, rotation: 0, scale: scale, color: color, bufferInfo: polyBuffer, bufferWire: polyWireBuffer, hasCurve: false, yInverted: yInverted });
+
+            // ear data to draw curves
+            if (shapeInfo.quadEars.length === 0) return;
+            const nEars = shapeInfo.quadEars.length;
+            let pts = []; // vertices
+            let uv = [];
+            let windings = [];
+            // let indices = [];
+
+            for (let i = 0; i < nEars; i++) {
+                const earData = shapeInfo.quadEars[i];
+                for (let k = 0; k < 3; k++) {
+                    const idx = earData[k];
+                    const px = shapeInfo.earPoints[2 * idx];
+                    const py = shapeInfo.earPoints[2 * idx + 1];
+                    pts.push(px, py);
+                }
+
+                uv.push(0, 0, 0.5, 0, 1, 1);
+                // indices.push(earData[0], earData[1], earData[2]);
+                windings.push(earData[3], earData[3], earData[3]);
+            }
+
+            const curveBuffer = twgl.createBufferInfoFromArrays(gl, {
+                a_position: {
+                    numComponents: 2,
+                    data: pts,
+                },
+                a_texcoord: {
+                    numComponents: 2,
+                    data: uv,
+                },
+                a_winding: {
+                    numComponents: 1,
+                    data: windings,
+                },
+                // indices: indices,
+            });
+
+            // add to scene
+            scene.push({ x: x, y: y, rotation: 0, scale: scale, color: color, bufferInfo: curveBuffer, hasCurve: true, yInverted: yInverted });
+        }
+
+        function trianglesTolines(triangles) {
+            let lines = [];
+            for (let i = 0; i < triangles.length / 3; i++) {
+                const i0 = triangles[3 * i], i1 = triangles[3 * i + 1], i2 = triangles[3 * i + 2];
+                lines.push(i0, i1, i1, i2, i2, i0);
+            }
+            return lines;
+        }
+
+        // compiles shaders, links program, looks up locations
+        // const programInfo1 = twgl.createProgramInfo(gl, [vs, fs]);
+        const programInfo2 = twgl.createProgramInfo(gl, [loopvs_gl2, loopfs_gl2]);
+
+        // tessellator, a contour is a flattened point-list, and a polygon is a multi-contour
+        var ring = [
+            [0, 0, 100, 0, 100, 100, 0, 100],
+            [20, 20, 80, 20, 80, 80, 20, 80],
+        ];
+        var tessRing = tessellate(ring);
+        const bufferRing = twgl.createBufferInfoFromArrays(gl, {
+            a_position: {
+                numComponents: 2,
+                data: Float32Array.from(tessRing.vertices),
+            },
+            indices: Array.from(tessRing.triangles),
+        });
+        const bufferRingWire = twgl.createBufferInfoFromArrays(gl, {
+            a_position: {
+                numComponents: 2,
+                data: Float32Array.from(tessRing.vertices),
+            },
+            indices: Array.from(trianglesTolines(tessRing.triangles)),
+        });
+
+        // shape F
+        var poly = [
+            [
+                0, 0,   // 0----1
+                40, 0,  // |    |
+                40, 10, // | 3--2
+                10, 10, // | |
+                10, 20, // | 4-5
+                30, 20, // |   |
+                30, 30, // | 7-6
+                10, 30, // | |
+                10, 50, // 9-8
+                0, 50,
+            ],
+        ];
+
+        var tess = tessellate(poly);
+        const bufferTess = twgl.createBufferInfoFromArrays(gl, {
+            a_position: {
+                numComponents: 2,
+                data: Float32Array.from(tess.vertices),
+            },
+            indices: Uint16Array.from(tess.triangles),
+        });
+
+        const bufferTessWire = twgl.createBufferInfoFromArrays(gl, {
+            a_position: {
+                numComponents: 2,
+                data: Float32Array.from(tess.vertices),
+            },
+            indices: Uint16Array.from(trianglesTolines(tess.triangles)),
+        });
+
+        // calls gl.createBuffer, gl.bindBuffer, gl.bufferData
+        // const bufferInfo = twgl.createBufferInfoFromArrays(gl, {
+        //   a_position: {
+        //     numComponents: 2,
+        //     data: [
+        //       0, 0, // 0----1
+        //       40, 0, // |    |
+        //       40, 10, // | 3--2
+        //       10, 10, // | |
+        //       10, 20, // | 4-5
+        //       30, 20, // |   |
+        //       30, 30, // | 7-6
+        //       10, 30, // | |
+        //       10, 50, // 9-8
+        //       0, 50,
+        //     ],
+        //   },
+        //   indices: [
+        // 0, 1, 2,
+        // 0, 2, 3,
+        // 0, 3, 8,
+        // 0, 8, 9,
+        // 4, 5, 6,
+        // 4, 6, 7,
+        //   ],
+        // });
+
+        const bufferCurve = twgl.createBufferInfoFromArrays(gl, {
+            a_position: {
+                numComponents: 2,
+                data: [
+                    // 99, 202,
+                    // 99, 98,
+                    // 21, 42,
+                    50, 50,
+                    100, 50,
+                    100, 100,
+
+                    100, 100,
+                    50, 100,
+                    50, 150,
+                ],
+            },
+            a_texcoord: {
+                numComponents: 2,
+                data: [
+                    0, 0,
+                    0.5, 0,
+                    1, 1,
+                    0, 0,
+                    0.5, 0,
+                    1, 1,
+                ],
+            },
+            a_winding: {
+                numComponents: 1,
+                data: [1, 1, 1, -1, -1, -1],
+            },
+            // indices: [
+            //   0, 1, 2,
+            //   2, 3, 4,
+            // ],
+        });
+
+        const sphereVerts = twgl.primitives.createSphereVertices(1, 24, 12);
+        const sphereBufferInfo = twgl.createBufferInfoFromArrays(gl, {
+            a_position: sphereVerts.position,
+            indices: sphereVerts.indices,
+        });
+
+        const camera = {
+            x: 0,
+            y: 0,
+            rotation: 0,
+            zoom: 1,
+        };
+
+        // add some simple shapes
+        const testCubic = shapeFromSvgString('M0,50L50,50C75,50,100,75,100,100C75,100,50,125,50,150z'); // original path
+        const strokeString = 'M0 0L50 100C50 95.507 50.8075 91.014 52.2773 86.6661C58.986 66.8215 79.493 50 100 50C100 47.3256 99.7139 44.6512 99.1723 42.0075C94.6512 19.9373 72.3256 0 50 0H0ZM12.9443 8L47.5492 77.21C50.6921 70.81 54.9897 64.9466 59.9681 59.9681C68.3948 51.5415 79.3566 45.0655 91.1649 42.8382C89.4153 35.1888 85.0006 27.5643 78.7181 21.2819C70.4659 13.0296 59.8981 8 50 8H12.9443Z';
+        var reversedStrokeString = SVGPathEditor.reverse(strokeString, 0); // have to reverse, winding is not correct.
+        const testCubicStroke = shapeFromSvgString(reversedStrokeString); // stroked path (5)
+        addShape(50, 0, 1, [0, 0, 1, 1], testCubic, false);
+        addShape(150, 0, 1, [0, 0, 1, 0.5], testCubic, false);
+        addShape(250, 50, 1, [0, 0, 1, 1], testCubicStroke, false);
+
+
+        addShape(-500, 100, 0.3, [0.6, 0.25, 0.25, 1], shapeFromSvgString(SvgPath('M202 58C202 88.9279 156.781 114 101 114C45.2192 114 0 88.9279 0 58C0 27.0721 45.2192 0.5 101 0.5C156.781 0.5 202 27.0721 202 58Z').unarc().toString()), false); // oval
+        addShape(-500, 200, 0.3, [0.6, 0.25, 0.25, 1], shapeFromSvgString(SvgPath(`M128.596 52.5962C131.135 50.0578 131.135 45.9422 128.596 43.4038L87.2304 2.03806C84.692 -0.500349 80.5765 -0.500349 78.0381 2.03806C75.4997 4.57647 75.4997 8.69204 78.0381 11.2304L114.808 48L78.0381 84.7696C75.4997 87.308 75.4997 91.4235 78.0381 93.9619C80.5765 96.5003 84.692 96.5003 87.2304 93.9619L128.596 52.5962ZM0 54.5H124V41.5H0L0 54.5Z`).unarc().scale(1, -1).toString()), true);
+        addShape(-500, 300, 0.3, [0.2, 0.5, 0, 1], shapeFromSvgString(SvgPath(`M73 0L145.746 114H0.253868L73 0Z`).unarc().toString()), false);
+        addShape(-500, 400, 0.3, [0.2, 0.5, 0, 1], shapeFromSvgString(SvgPath(`M40.1402 9.42085C48.0031 -2.90099 65.9969 -2.90099 73.8598 9.42085L110.118 66.2414C118.614 79.5548 109.052 97 93.2585 97H20.7415C4.94839 97 -4.61391 79.5548 3.88168 66.2414L40.1402 9.42085Z`).unarc().toString()), false);
+        addShape(-500, 500, 0.3, [0.2, 0, 1, 1], shapeFromSvgString(SvgPath(`M65.014 4.2216C71.6822 -0.161684 80.3178 -0.161691 86.986 4.22159L142.729 40.8641C150.449 45.9389 153.689 55.6413 150.566 64.3364L130.129 121.245C127.276 129.188 119.745 134.485 111.306 134.485H40.6942C32.2548 134.485 24.7236 129.188 21.8712 121.245L1.43404 64.3364C-1.68855 55.6413 1.55092 45.939 9.2711 40.8641L65.014 4.2216Z`).unarc().toString()), false);
+        addShape(-500, 600, 0.3, [0.2, 0, 1, 1], shapeFromSvgString(SvgPath(`M80 0L159.889 52.5147L129.374 137.485H30.626L0.111252 52.5147L80 0Z`).unarc().toString()), false);
+        addShape(-500, 700, 0.3, [0, 0, 1, 0.5], shapeFromSvgString(SvgPath(`M79.5 0L98.2469 53.5512L158.913 53.5512L109.833 86.6476L128.58 140.199L79.5 107.102L30.4199 140.199L49.1668 86.6476L0.0867844 53.5512L60.7531 53.5512L79.5 0Z`).unarc().toString()), false);
+        addShape(-500, 800, 0.3, [0, 0, 0.7, 1], shapeFromSvgString(SvgPath(`M0 24C0 10.7452 10.7452 0 24 0H102H180C193.255 0 204 10.7452 204 24V94C204 107.255 193.255 118 180 118H24C10.7452 118 0 107.255 0 94V24Z`).unarc().toString()), false);
+
+        // contains the different shapes, each shape has polylines and ears.
+        scene.push(
+            // { x: 20, y: 20, rotation: 0, scale: 1, color: [1, 0, 0, 1], bufferInfo: bufferInfo },
+            { x: -500, y: -200, rotation: 0, scale: 1, color: [1, 0, 1, 0.5], bufferInfo: bufferRing, bufferWire: bufferRingWire, hasCurve: false },
+            { x: -500 + 30, y: -200 + 30, rotation: 0, scale: 1, color: [0, 0, 1, 0.5], bufferInfo: bufferRing, bufferWire: bufferRingWire, hasCurve: false },
+            { x: -500, y: 0, rotation: 0, scale: 1, color: [0, 0, 1, 1], bufferInfo: bufferTess, bufferWire: bufferTessWire, hasCurve: false },
+            { x: 400, y: 0, rotation: 0, scale: 1, color: [1, 0, 0, 1], bufferInfo: bufferCurve, hasCurve: true },
+        );
+
+        let viewProjectionMat;
+
+        function makeCameraMatrix() {
+            const zoomScale = 1 / camera.zoom;
+            let cameraMat = m3.identity();
+            cameraMat = m3.translate(cameraMat, camera.x, camera.y);
+            cameraMat = m3.rotate(cameraMat, camera.rotation);
+            cameraMat = m3.scale(cameraMat, zoomScale, zoomScale);
+            return cameraMat;
+        }
+
+        function updateViewProjection() {
+            // same as ortho(0, width, height, 0, -1, 1)
+            const projectionMat = m3.projection(gl.canvas.width, gl.canvas.height);
+            const cameraMat = makeCameraMatrix();
+            let viewMat = m3.inverse(cameraMat);
+            viewProjectionMat = m3.multiply(projectionMat, viewMat);
+        }
+
+        function drawThing(thing, programInfo) {
+            const { x, y, rotation, scale, color, yInverted } = thing;
+            const bufferInfo = showWireframe ? thing.bufferWire : thing.bufferInfo;
+
+            // calls gl.bindBuffer, gl.enableVertexAttribArray, gl.vertexAttribPointer
+            if (!bufferInfo) return;
+            twgl.setBuffersAndAttributes(gl, programInfo, bufferInfo);
+
+            let mat = m3.identity();
+            mat = m3.translate(mat, x, y);
+            mat = m3.rotate(mat, rotation);
+
+            // handle fonts
+            if (yInverted) {
+                mat = m3.scale(mat, scale, -scale);
+            } else {
+                mat = m3.scale(mat, scale, scale);
+            }
+
+            // calls gl.uniformXXX
+            twgl.setUniforms(programInfo, {
+                u_matrix: m3.multiply(viewProjectionMat, mat),
+                u_color: color,
+            });
+
+            // calls gl.drawArrays or gl.drawElements
+            twgl.drawBufferInfo(gl, bufferInfo, showWireframe ? gl.LINES : gl.TRIANGLES);
+        }
+
+        function draw() {
+            gl.clearColor(1, 1, 1, 1);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+
+            updateViewProjection();
+
+            gl.useProgram(programInfo2.program);
+            for (let i = 0; i < scene.length; i++) {
+                drawThing(scene[i], programInfo2);
+            }
+
+            // if (rotate) {
+            //   drawThing({
+            //     x: startPos[0],
+            //     y: startPos[1],
+            //     rotation: 0,
+            //     scale: 5 / camera.zoom,
+            //     color: [0, 0, 0, 1],
+            //     bufferInfo: sphereBufferInfo,
+            //   }, programInfo2);
+            // }
+        }
+
+        function getClipSpaceMousePosition(e) {
+            // get canvas relative css position
+            const rect = canvas.getBoundingClientRect();
+            const cssX = e.clientX - rect.left;
+            const cssY = e.clientY - rect.top;
+
+            // get normalized 0 to 1 position across and down canvas
+            const normalizedX = cssX / canvas.clientWidth;
+            const normalizedY = cssY / canvas.clientHeight;
+
+            // convert to clip space
+            const clipX = normalizedX * 2 - 1;
+            const clipY = normalizedY * -2 + 1;
+
+            return [clipX, clipY];
+        }
+
+        let startInvViewProjMat;
+        let startCamera;
+        let startPos;
+        let startClipPos;
+        let startMousePos;
+        let rotate;
+
+        function moveCamera(e) {
+            const pos = m3.transformPoint(
+                startInvViewProjMat,
+                getClipSpaceMousePosition(e));
+
+            camera.x = startCamera.x + startPos[0] - pos[0];
+            camera.y = startCamera.y + startPos[1] - pos[1];
+            draw();
+        }
+
+        function rotateCamera(e) {
+            const delta = (e.clientX - startMousePos[0]) / 100;
+
+            // compute a matrix to pivot around the camera space startPos
+            let camMat = m3.identity();
+            camMat = m3.translate(camMat, startPos[0], startPos[1]);
+            camMat = m3.rotate(camMat, delta);
+            camMat = m3.translate(camMat, -startPos[0], -startPos[1]);
+
+            // multply in the original camera matrix
+            Object.assign(camera, startCamera);
+            camMat = m3.multiply(camMat, makeCameraMatrix());
+
+            // now we can set the rotation and get the needed
+            // camera position from the matrix
+            camera.rotation = startCamera.rotation + delta;
+            camera.x = camMat[6];
+            camera.y = camMat[7];
+
+            draw();
+        }
+
+        function handleMouseMove(e) {
+            if (rotate) {
+                rotateCamera(e);
+            } else {
+                moveCamera(e);
+            }
+        }
+
+        function handleMouseUp(e) {
+            rotate = false;
+            draw();
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
+
+            rotate = e.shiftKey;
+            startInvViewProjMat = m3.inverse(viewProjectionMat);
+            startCamera = Object.assign({}, camera);
+            startClipPos = getClipSpaceMousePosition(e);
+            startPos = m3.transformPoint(
+                startInvViewProjMat,
+                startClipPos);
+            startMousePos = [e.clientX, e.clientY];
+            draw();
+        });
+
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const [clipX, clipY] = getClipSpaceMousePosition(e);
+
+            // position before zooming
+            const [preZoomX, preZoomY] = m3.transformPoint(
+                m3.inverse(viewProjectionMat),
+                [clipX, clipY]);
+
+            // multiply the wheel movement by the current zoom level
+            // so we zoom less when zoomed in and more when zoomed out
+            const newZoom = camera.zoom * Math.pow(2, e.deltaY * -0.01);
+            camera.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newZoom));
+            window.document.title = `Zoom ${Math.ceil(camera.zoom * 100)}%`;
+
+
+            updateViewProjection();
+
+            // position after zooming
+            const [postZoomX, postZoomY] = m3.transformPoint(
+                m3.inverse(viewProjectionMat),
+                [clipX, clipY]);
+
+            // camera needs to be moved the difference of before and after
+            camera.x += preZoomX - postZoomX;
+            camera.y += preZoomY - postZoomY;
+            draw();
+        });
+
+        // key listener
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'w' || e.key === 'W') {
+                showWireframe = !showWireframe;
+            }
+            draw();
+        }, false);
+
+
+        draw();
+    </script>
+</body>
+
+</html>
