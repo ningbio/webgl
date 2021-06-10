@@ -644,7 +644,7 @@ void main() {
         // add some simple shapes
         const testCubic = shapeFromSvgString('M0,50L50,50C75,50,100,75,100,100C75,100,50,125,50,150z'); // original path
         const strokeString = 'M0 0L50 100C50 95.507 50.8075 91.014 52.2773 86.6661C58.986 66.8215 79.493 50 100 50C100 47.3256 99.7139 44.6512 99.1723 42.0075C94.6512 19.9373 72.3256 0 50 0H0ZM12.9443 8L47.5492 77.21C50.6921 70.81 54.9897 64.9466 59.9681 59.9681C68.3948 51.5415 79.3566 45.0655 91.1649 42.8382C89.4153 35.1888 85.0006 27.5643 78.7181 21.2819C70.4659 13.0296 59.8981 8 50 8H12.9443Z';
-        var reversedStrokeString = SVGPathEditor.reverse(strokeString, 0); // have to reverse, winding is not correct.
+        var reversedStrokeString = SVGPathEditor.reverse(strokeString); // have to reverse, winding is not correct.
         const testCubicStroke = shapeFromSvgString(reversedStrokeString); // stroked path (5)
         addShape(50, 0, 1, [0, 0, 1, 1], testCubic, false);
         addShape(150, 0, 1, [0, 0, 1, 0.5], testCubic, false);

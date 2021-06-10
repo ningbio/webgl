@@ -221,13 +221,13 @@
       // boolean union
       const unionPath = PathKit.MakeFromOp(path1, path2, PathKit.PathOp.UNION);
       const unionPathStr = unionPath.toSVGString();
-      const rev = SVGPathEditor.reverse(unionPathStr, 0); // have to reverse??
+      const rev = SVGPathEditor.reverse(unionPathStr); // have to reverse??
       addShape(300, 400, 1, [1, 0, 1, 0.4], shapeFromSvgString(rev), false, FillType.SOLID);
 
       // simplify-ed(corrected) arrow
       const arrowStr = SvgPath(`M128.596 52.5962C131.135 50.0578 131.135 45.9422 128.596 43.4038L87.2304 2.03806C84.692 -0.500349 80.5765 -0.500349 78.0381 2.03806C75.4997 4.57647 75.4997 8.69204 78.0381 11.2304L114.808 48L78.0381 84.7696C75.4997 87.308 75.4997 91.4235 78.0381 93.9619C80.5765 96.5003 84.692 96.5003 87.2304 93.9619L128.596 52.5962ZM0 54.5H124V41.5H0L0 54.5Z`).unarc().scale(1, -1).toString();
       const opedStr = PathKit.FromSVGString(arrowStr).simplify().toSVGString();
-      const rev1 = SVGPathEditor.reverse(opedStr, 0); // have to reverse??
+      const rev1 = SVGPathEditor.reverse(opedStr); // have to reverse??
       addShape(-450, 200, 0.3, [0.6, 0.25, 0.25, 1], shapeFromSvgString(rev1), true);
 
       // stroke-on-stroke example
@@ -898,7 +898,7 @@ void main() {
     // add some simple shapes
     const testCubic = shapeFromSvgString('M0,50L50,50C75,50,100,75,100,100C75,100,50,125,50,150z'); // original path
     const strokeString = 'M0 0L50 100C50 95.507 50.8075 91.014 52.2773 86.6661C58.986 66.8215 79.493 50 100 50C100 47.3256 99.7139 44.6512 99.1723 42.0075C94.6512 19.9373 72.3256 0 50 0H0ZM12.9443 8L47.5492 77.21C50.6921 70.81 54.9897 64.9466 59.9681 59.9681C68.3948 51.5415 79.3566 45.0655 91.1649 42.8382C89.4153 35.1888 85.0006 27.5643 78.7181 21.2819C70.4659 13.0296 59.8981 8 50 8H12.9443Z';
-    var reversedStrokeString = SVGPathEditor.reverse(strokeString, 0); // have to reverse, winding is not correct.
+    var reversedStrokeString = SVGPathEditor.reverse(strokeString); // have to reverse, winding is not correct.
     const testCubicStroke = shapeFromSvgString(reversedStrokeString); // stroked path (5)
     addShape(-50, 0, 1, [1, 0, 0, 0.5], testCubic, false, FillType.SOLID);
     addShape(50, 0, 1, [1, 0, 0, 0.5], testCubic, false, FillType.ADVANCED_IMAGE);
