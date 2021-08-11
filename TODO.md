@@ -1,0 +1,1 @@
+We can separate styles into different shaders in different programs, prepare them during init, and control differnt rendering by make one program active.
