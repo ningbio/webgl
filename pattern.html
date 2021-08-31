@@ -282,7 +282,7 @@
 
 
       // build the global T->[si, t] table
-      const nBin = 20; // cut global [0,1] into nBins
+      const nBin = 1024; // cut global [0,1] into nBins
       const binSpan = 1.0 / nBin;
       let curPieceIdx = 0; // initial the first segment
       const table = [];
