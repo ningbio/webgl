@@ -246,12 +246,59 @@
 
       // loop piecewise curve
       let basePathSegments = [];
+      let totalLength = 0;
       getCubicSegments(basePathString, basePathSegments);
+
       console.log(`total cubic segments in base path: ${basePathSegments.length}`);
+      const lenArray = [];
       for (let i = 0; i < basePathSegments.length; i++) {
         const len = segmentLength(basePathSegments[i]);
+        totalLength += len;
+        lenArray.push(len);
         console.log(`seg ${i} length is ${len}`);
       }
+
+      // nPiece-1 (not including 0, 1)
+      const knots = [];
+      let sum = 0;
+      for (let i = 0; i < lenArray.length - 1; i++) {
+        sum += lenArray[i];
+        knots.push(sum / totalLength);
+      }
+      console.log(knots);
+
+      const pieceRange = [];
+      for (let i = 0; i < basePathSegments.length; i++) {
+        if (i === 0) {
+          pieceRange.push([0, knots[0]]);
+        }
+        else if (i === basePathSegments.length - 1) {
+          pieceRange.push([knots[knots.length - 1], 1]);
+        } else {
+          pieceRange.push([knots[i - 1], knots[i]]);
+        }
+      }
+      console.log(pieceRange);
+
+
+      // build the global T->[si, t] table
+      const nBin = 20; // cut global [0,1] into nBins
+      const binSpan = 1.0 / nBin;
+      let curPieceIdx = 0; // initial the first segment
+      const table = [];
+      for (let i = 0; i < nBin; i++) {
+        // [i*binSpan, (i+1)*binSpan)
+        const curStart = i * binSpan;
+        if (curStart < pieceRange[curPieceIdx][1]) {
+          // still inside current piece
+          table.push([curPieceIdx, pieceRange[curPieceIdx][0], pieceRange[curPieceIdx][1]]);
+        } else {
+          // current start already pass into next piece
+          curPieceIdx++;
+          table.push([curPieceIdx, pieceRange[curPieceIdx][0], pieceRange[curPieceIdx][1]]);
+        }
+      }
+      console.log(table);
 
 
       // pattern fill with border and attachment shapes inside
@@ -285,9 +332,12 @@
         let patternFillString = 'M33.96 342.31C5.27 340.82 -0.91 317.47 -0.06 303.94Q1.55 277.99 3.17 252.04C4 238.79 5.09 226.39 6.13 214.4 7.19 202.38 8.27 189.94 9.09 176.61 9.61 168.26 9.9 158.7 10.18 149.45 10.46 140.26 10.74 130.75 11.27 122.51 11.97 111.23 12.59 99.76 13.2 88.67 13.81 77.63 14.43 66.2 15.14 54.99 15.7 46.05 16.4 36.87 17.25 27.69 17.69 22.87 20.17 17.25 24.56 16.32 24.98 16.23 25.41 16.19 25.84 16.22 28.37 16.36 30.42 18.78 30.72 21.96 30.87 25.35 30.67 28.74 30.1 32.08 29.87 33.77 29.65 35.51 29.51 37.21 28.98 43.54 28.65 48.82 28.45 53.85 28.31 58.7 31.86 62.75 36.43 62.9 39.77 63.11 42.87 61.09 44.24 57.85 45.53 54.86 45.38 51.32 45.25 48.2 45.2 47.11 45.16 46.08 45.18 45.2 45.22 43.62 45.19 41.84 45.17 39.96 45.1 35.38 45.04 30.18 45.92 25.73 46.84 21.11 48.53 18.32 51.24 16.96 52.31 16.42 53.47 16.14 54.65 16.17 56.1 16.18 57.47 16.86 58.43 18.04 59.35 19.29 59.73 20.93 59.48 22.52 59.03 26.41 58.69 29.85 58.43 33.05 57.8 39.93 57.59 46.84 57.8 53.73 58.08 59.54 62.52 64.1 67.99 64.18 72.44 64.44 76.47 61.44 77.78 56.9 78.36 54.7 78.55 52.39 78.34 50.11Q78.33 49.96 78.33 49.82C78.02 43.6 78.22 37.36 78.89 31.17 79.01 30.29 79.09 29.4 79.18 28.52 79.55 24.49 79.85 21.3 82.33 18.92 83.54 17.78 85.09 17.16 86.68 17.18 87.35 17.2 88.02 17.35 88.64 17.63 90.96 18.72 91.54 22.58 91.68 24.2 91.82 26.75 91.71 29.32 91.39 31.85 91.25 33.3 91.1 34.8 91.04 36.31 90.77 41.85 90.71 46.7 90.84 51.11 91.1 59.64 95.35 65.01 101.93 65.1Q102.06 65.11 102.19 65.11C105.19 65.09 108.03 63.75 110.07 61.42 112.15 59.05 113.23 55.88 113.09 52.63 112.7 43.53 112.51 36.52 112.54 31.78 112.54 30.92 112.53 30.02 112.51 29.12 112.45 25.82 112.38 22.4 113.54 19.89 114.39 17.93 116.01 16.51 117.93 16.03 118.21 15.97 118.5 15.94 118.78 15.94 122.27 15.94 125.18 20.54 125.35 24.51 125.56 29.08 125.49 33.8 125.44 38.36 125.39 42.38 125.33 46.53 125.46 50.63 125.74 59.64 130.17 65.22 137.03 65.17 142.83 65.11 147.01 60.77 148.19 53.58 149.48 45.51 149.3 37.21 149.01 29.41 148.96 28.13 148.83 26.88 148.7 25.67 148.26 21.55 148.1 19.11 150.02 16.99 151.16 15.77 152.68 15.07 154.27 15.04 154.71 15.03 155.15 15.07 155.59 15.17 160.03 16.22 160.59 21.01 160.94 28.21 161.13 32.08 161.03 36.05 160.94 39.88 160.87 42.81 160.79 45.84 160.85 48.79 160.86 49.31 160.86 49.85 160.85 50.41 160.85 54.33 160.84 59.2 163.71 62.23 167.34 65.53 172.7 65.24 175.98 61.59 178.67 58.18 178.42 52.98 177.92 48.83 177.27 43.46 176.54 37.38 176.16 31.36 176.12 30.64 176.06 29.88 176 29.09 175.59 23.77 175.08 17.17 178.56 14.45 179.5 13.73 180.61 13.34 181.75 13.3 182.81 13.25 183.86 13.51 184.79 14.06 187.47 15.68 188.11 18.95 188.34 24.42 188.72 33.39 189.5 42.48 190.69 51.48 191.49 58.24 196.91 63.27 203.22 63.13Q203.32 63.13 203.41 63.12C209.52 62.78 214.29 57.51 214.75 50.61 215.05 45.12 214.88 39.61 214.24 34.14 214.05 32.28 213.76 30.41 213.47 28.6 212.96 25.71 212.64 22.78 212.55 19.84 212.49 17.73 212.95 15.63 213.9 13.81 214.66 12.23 216.07 11.18 217.67 10.98 219.74 10.85 221.87 12.5 222.96 15.1 224.67 19.12 225.15 23.91 225.62 28.53 225.71 29.44 225.8 30.35 225.9 31.24 227.08 41.86 228.19 52.48 229.19 62.82 230.3 74.24 231.08 86.65 231.84 98.66 232.22 104.85 232.59 110.71 233 116.45 234.48 137.14 236.09 157.69 237.65 177.56 239.44 200.3 241.31 223.82 242.96 247.53 243.99 262.39 244.74 273.74 245.31 282.41 245.75 289.02 246.09 294.08 246.37 297.96 247.65 315.76 243.46 327.72 233.54 334.48 224.96 340.25 213.34 341.32 203.13 341.8Q200.5 341.91 197.88 342.01C186.87 342.43 178.68 342.51 170.78 342.56 163.1 342.56 155.17 342.54 144.58 342.67Q143.01 342.69 141.43 342.71C120.92 342.8 104.21 343.11 88.07 343.25 71.72 343.27 54.85 343.15 33.96 342.31Q33.96 342.31 33.96 342.31z';
         patternFillString = SvgPath(patternFillString).scale(s, s).toString();
         // this may not be correct, should be center of all content
-        const [cx, cy] = getCenter(patternFillString); // used as global center
-        // const offx -= cx;
-        // const offy -= cy;
+        const bb = PathKit.FromSVGString(patternFillString).computeTightBounds();
+
+        const [cx, cy] = [0.5 * (bb.fLeft + bb.fRight), 0.5 * (bb.fTop + bb.fBottom)]; // used as global center
+        const xspan = bb.fRight - bb.fLeft;
+        const totalRepeats = Math.floor(totalLength / xspan);
+        console.log(`pattern xspan: ${xspan} totalLength: ${totalLength} total places: ${totalRepeats}`);
 
         // the background shape
         const shape1 = shapeFromSvgString(patternFillString);
@@ -334,6 +384,21 @@
           place(pos[0], pos[1], 1, angle, cx, cy);
         }
 
+
+        const gt = 0.5;
+        const gPos = getPiecewisePosition(gt, binSpan, table, basePathSegments);
+        const gTangent = getPiecewiseTangent(gt, binSpan, table, basePathSegments);
+        const angle = -Math.atan2(gTangent[1], gTangent[0]);
+        place(gPos[0], gPos[1], 1, angle, cx, cy);
+
+
+        const dT = 1.0 / totalRepeats;
+        for (let i = 0; i < totalRepeats; i++) {
+          const T = i * dT; // this is global T
+          // const [index, t]
+
+        }
+
         // we can draw as many as we can without any slowness
         // for (let i = 0; i < 50; i++) {
         //   for (let j = 0; j < 50; j++) {
@@ -357,7 +422,6 @@
     function placePatternElemet(x, y, scale, rotation, polyBuf, earBuf) {
       addShapeWithBuffer(x, y, scale, rotation, color, yInverted, polyBuf, earBuf);
     }
-
 
     // spefical brush pattern
     function placePattern(x, y, scale, rotation) {
@@ -402,9 +466,6 @@
         }
       });
     }
-
-    // build t->S table
-
 
     function getPosition(segment, time) {
       const s = 1 - time;
@@ -495,13 +556,21 @@
     }
 
     // get position of a piecewise curve with global T
-    function getPiecewisePosition(curve, T) {
-
+    function getPiecewisePosition(T, binSpan, table, basePathSegments) {
+      const idx = Math.floor(T / binSpan);
+      const [pidx, t0, t1] = table[idx];
+      const t = (T - t0) / (t1 - t0);
+      const segment = basePathSegments[pidx];
+      return getPosition(segment, t);
     }
 
     // get normal of a piecewise curve with global T
-    function getPiecewiseNormal(curve, T) {
-
+    function getPiecewiseTangent(T, binSpan, table, basePathSegments) {
+      const idx = Math.floor(T / binSpan);
+      const [pidx, t0, t1] = table[idx];
+      const t = (T - t0) / (t1 - t0);
+      const segment = basePathSegments[pidx];
+      return getTangent(segment, t);
     }
 
 
