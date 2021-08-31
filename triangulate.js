@@ -65,7 +65,7 @@ function triangulate(contours) {
   // console.log('tesselation time: ' + (endTime - startTime).toFixed(2) + 'ms');
 
   return {
-    vertices:,
+    vertices,
     triangles: triangleVerts,
   }
 
